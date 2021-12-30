@@ -1,4 +1,4 @@
-export type GetValue<T> = (item: T) => number;
+export type ToValue<T> = (item: T) => number;
 
 /**
  * All possible options for `scor`.
@@ -16,7 +16,7 @@ export interface AllOptions<T> {
   /**
    * Method to resolve the numeric value from an item.
    */
-  toValue: GetValue<T>;
+  toValue: ToValue<T>;
 }
 
 /**
@@ -75,11 +75,13 @@ export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
  * @throws If one of the arguments is `NaN`.
  */
 export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
-  scor({
-    min,
-    max,
-    toValue,
-  });
+  scor({ min, max, toValue });
+
+/**
+ * Create a Scor with an updated `toValue`.
+ */
+export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
+  scor({ min, max, toValue });
 
 /**
  * Create a Scor that can take a range (min and max values) to calculate a score for a value.

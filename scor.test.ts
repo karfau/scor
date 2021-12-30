@@ -6,13 +6,14 @@ import {
 } from "https://deno.land/std@0.119.0/testing/asserts.ts";
 import {
   AllOptions,
-  GetValue,
   INVALID_RANGE,
   Scor,
   scor,
   setMax,
   setMin,
   setRange,
+  setToValue,
+  ToValue,
 } from "./scor.ts";
 
 const assertReadonlyProperties = <Item>(
@@ -44,7 +45,7 @@ Deno.test({
   name: "scor stores all explicit options",
   fn: async (t) => {
     type Item = { p: number };
-    const toValue: GetValue<Item> = (item) => item.p;
+    const toValue: ToValue<Item> = (item) => item.p;
     const MIN = 1;
     const MAX = 5;
     const options: AllOptions<Item> = { min: MIN, max: MAX, toValue };
@@ -288,5 +289,15 @@ Deno.test("`setRange` returns `Scor` with updated `min` and `max`", () => {
   assert(first !== second);
   assertStrictEquals(second.min, 5);
   assertStrictEquals(second.max, 10);
+  assertStrictEquals(second.toValue, toValue);
+});
+
+Deno.test("`setToValue` returns `Scor` with updated `toValue`", () => {
+  const toValue = () => 0;
+  const first = scor({ min: 0, max: 25 });
+  const second = setToValue(first, toValue);
+  assert(first !== second);
+  assertStrictEquals(second.min, 0);
+  assertStrictEquals(second.max, 25);
   assertStrictEquals(second.toValue, toValue);
 });
