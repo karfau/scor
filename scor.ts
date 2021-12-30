@@ -46,15 +46,40 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    * @throws {Error} If the range is not limited on both sides.
    * @throws {Error} If the `toValue` is not configured.
    */
-  readonly forItem: (item: T) => never | number;
+  forItem(item: T): never | number;
   /**
    * Returns the score for `value`.
    * If the range has no length (`min == max`) the value is always 0.
    *
    * @throws {Error} If the range is not limited on both sides.
    */
-  readonly forValue: (value: number) => never | number;
+  forValue(value: number): never | number;
 }
+
+/**
+ * Create a Scor with an updated `min`.
+ * @throws If `min` is `NaN`.
+ */
+export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
+  scor({ min, max, toValue });
+
+/**
+ * Create a Scor with an updated `max`.
+ * @throws If `max` is `NaN`.
+ */
+export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
+  scor({ min, max, toValue });
+
+/**
+ * Create a Scor with an updated range.
+ * @throws If one of the arguments is `NaN`.
+ */
+export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
+  scor({
+    min,
+    max,
+    toValue,
+  });
 
 /**
  * Create a Scor that can take a range (min and max values) to calculate a score for a value.
@@ -66,20 +91,24 @@ export const scor = <T>(
 ): never | Scor<T> => {
   if (min !== undefined && isNaN(min)) throw new Error(INVALID_RANGE);
   if (max !== undefined && isNaN(max)) throw new Error(INVALID_RANGE);
-  const explicit = { min, max, toValue };
+  const common = { min, max, toValue };
   if (min === undefined || max === undefined) {
     return Object.freeze({
-      ...explicit,
+      ...common,
       forItem: forValueNotAllowed,
       forValue: forValueNotAllowed,
+      setMin,
+      setMax,
     });
   }
   if (min > max) throw new Error(INVALID_RANGE);
   if (min === max) {
     return Object.freeze({
-      ...explicit,
+      ...common,
       forItem: () => 0,
       forValue: () => 0,
+      setMin,
+      setMax,
     });
   }
   const maxFromZero = max - min;
@@ -90,10 +119,12 @@ export const scor = <T>(
     return (value - min) / maxFromZero;
   };
   return Object.freeze({
-    ...explicit,
+    ...common,
     forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
       throw new Error("missing toValue");
     },
     forValue,
+    setMin,
+    setMax,
   });
 };

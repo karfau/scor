@@ -1,9 +1,19 @@
 import {
+  assert,
   assertObjectMatch,
   assertStrictEquals,
   assertThrows,
 } from "https://deno.land/std@0.119.0/testing/asserts.ts";
-import { AllOptions, GetValue, INVALID_RANGE, Scor, scor } from "./scor.ts";
+import {
+  AllOptions,
+  GetValue,
+  INVALID_RANGE,
+  Scor,
+  scor,
+  setMax,
+  setMin,
+  setRange,
+} from "./scor.ts";
 
 const assertReadonlyProperties = <Item>(
   score: Scor<Item>,
@@ -249,4 +259,34 @@ Deno.test({
     assertStrictEquals(score.forItem({ p: 101 }), 1);
     assertStrictEquals(score.forItem({ p: NaN }), 0);
   },
+});
+
+Deno.test("`setMin` returns `Scor` with updated `min`", () => {
+  const toValue = () => 0;
+  const first = scor({ min: 0, max: 25, toValue });
+  const second = setMin(first, 5);
+  assert(first !== second);
+  assertStrictEquals(second.min, 5);
+  assertStrictEquals(second.max, 25);
+  assertStrictEquals(second.toValue, toValue);
+});
+
+Deno.test("`setMax` returns `Scor` with updated `min`", () => {
+  const toValue = () => 0;
+  const first = scor({ min: 0, max: 25, toValue });
+  const second = setMax(first, 5);
+  assert(first !== second);
+  assertStrictEquals(second.min, 0);
+  assertStrictEquals(second.max, 5);
+  assertStrictEquals(second.toValue, toValue);
+});
+
+Deno.test("`setRange` returns `Scor` with updated `min` and `max`", () => {
+  const toValue = () => 0;
+  const first = scor({ min: 0, max: 25, toValue });
+  const second = setRange(first, 5, 10);
+  assert(first !== second);
+  assertStrictEquals(second.min, 5);
+  assertStrictEquals(second.max, 10);
+  assertStrictEquals(second.toValue, toValue);
 });
