@@ -8,15 +8,18 @@ import { AllOptions, INVALID_RANGE, scor } from "./scor.ts";
 Deno.test({
   name: "scor stores all explicit options",
   fn: () => {
-    const options: AllOptions = { min: 1, max: 5 };
+    type Item = { p: number };
+    const getValue: GetValue<Item> = (item) => item.p;
+    const options: AllOptions<Item> = { getValue, min: 1, max: 5 };
     const score = scor(options);
     assertObjectMatch(
       score.explicit,
       options as unknown as Record<string, unknown>,
     );
     options.min--;
-    options.min++;
     assertStrictEquals(score.explicit.min, 1);
+
+    options.min++;
     assertStrictEquals(score.explicit.max, 5);
 
     // the following makes sure the fields are readonly
@@ -37,15 +40,15 @@ Deno.test({
   name: "not setting min or max value",
   fn: async (t) => {
     await t.step("when both are not set `.forValue` throws", () => {
-      let score = scor({}); // not providing a range upfront is valid
+      const score = scor({}); // not providing a range upfront is valid
       assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow .forValue
     });
     await t.step("when both are not set `.forValue` throws", () => {
-      let score = scor({ min: 7 }); // only providing min is valid
+      const score = scor({ min: 7 }); // only providing min is valid
       assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow .forValue
     });
     await t.step("when both are not set `.forValue` throws", () => {
-      let score = scor({ max: 7 }); // only providing min is valid
+      const score = scor({ max: 7 }); // only providing max is valid
       assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow .forValue
     });
   },
