@@ -57,34 +57,34 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
 }
 
 /**
- * Create a Scor with an updated `min`.
+ * Creates a `Scor` with an updated `min`.
  * @throws If `min` is `NaN`.
  */
 export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
   scor({ min, max, toValue });
 
 /**
- * Create a Scor with an updated `max`.
+ * Creates a `Scor` with an updated `max`.
  * @throws If `max` is `NaN`.
  */
 export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
   scor({ min, max, toValue });
 
 /**
- * Create a Scor with an updated range.
+ * Creates a `Scor` with an updated range.
  * @throws If one of the arguments is `NaN`.
  */
 export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
   scor({ min, max, toValue });
 
 /**
- * Create a Scor with an updated `toValue`.
+ * Creates a `Scor` with an updated `toValue`.
  */
 export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
   scor({ min, max, toValue });
 
 /**
- * Create a Scor that can take a range (min and max values) to calculate a score for a value.
+ * Creates a `Scor` that can take a range (min and max values) to calculate a score for a value.
  * A score is always between 0 and 1, even if the provided value is outside the range.
  * Trying to set either end of the range to `NaN` with throw an error.
  */
