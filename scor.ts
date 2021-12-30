@@ -28,10 +28,10 @@ export interface AllOptions<T> {
  */
 export type OptionsArg<T> = Readonly<Partial<AllOptions<T>>>;
 
-export const INVALID_RANGE = "invalid range";
+export const INVALID_RANGE = "Invalid range";
 
 const forValueNotAllowed = (): never => {
-  throw new Error(INVALID_RANGE);
+  throw new RangeError(INVALID_RANGE);
 };
 
 /**
@@ -43,7 +43,7 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    * Returns the score for `item`.
    * If the range has no length (`min == max`) the value is always 0.
    *
-   * @throws {Error} If the range is not limited on both sides.
+   * @throws {RangeError} If the range is not limited on both sides.
    * @throws {Error} If the `toValue` is not configured.
    */
   forItem(item: T): never | number;
@@ -51,7 +51,7 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    * Returns the score for `value`.
    * If the range has no length (`min == max`) the value is always 0.
    *
-   * @throws {Error} If the range is not limited on both sides.
+   * @throws {RangeError} If the range is not limited on both sides.
    */
   forValue(value: number): never | number;
 }
@@ -91,8 +91,12 @@ export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
 export const scor = <T>(
   { min, max, toValue }: OptionsArg<T> = {},
 ): never | Scor<T> => {
-  if (min !== undefined && isNaN(min)) throw new Error(INVALID_RANGE);
-  if (max !== undefined && isNaN(max)) throw new Error(INVALID_RANGE);
+  if (min !== undefined && isNaN(min)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected min to not be NaN`);
+  }
+  if (max !== undefined && isNaN(max)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected max to not be NaN`);
+  }
   const common = { min, max, toValue };
   if (min === undefined || max === undefined) {
     return Object.freeze({
@@ -103,7 +107,11 @@ export const scor = <T>(
       setMax,
     });
   }
-  if (min > max) throw new Error(INVALID_RANGE);
+  if (min > max) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected min(${min}) < max(${max})`,
+    );
+  }
   if (min === max) {
     return Object.freeze({
       ...common,

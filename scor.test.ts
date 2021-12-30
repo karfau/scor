@@ -73,7 +73,7 @@ Deno.test({
   fn: async (t) => {
     await t.step("when both are not set `forValue` throws", () => {
       const score = scor({}); // not providing a range upfront is valid
-      assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow `forValue`
+      assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
     });
     await t.step("stores `toValue`", () => {
       const toValue = (item: unknown[]) => item.length;
@@ -83,11 +83,11 @@ Deno.test({
     });
     await t.step("when both are not set `forValue` throws", () => {
       const score = scor({ min: 7 }); // only providing `min` is valid
-      assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow `forValue`
+      assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
     });
     await t.step("when both are not set `forValue` throws", () => {
       const score = scor({ max: 7 }); // only providing `max` is valid
-      assertThrows(() => score.forValue(0), Error, INVALID_RANGE); // but it doesn't allow `forValue`
+      assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
     });
   },
 });
@@ -109,15 +109,15 @@ Deno.test({
 Deno.test({
   name: "min, max options can not be NaN",
   fn: () => {
-    assertThrows(() => scor({ min: NaN }), Error, INVALID_RANGE);
-    assertThrows(() => scor({ max: NaN }), Error, INVALID_RANGE);
+    assertThrows(() => scor({ min: NaN }), RangeError, INVALID_RANGE);
+    assertThrows(() => scor({ max: NaN }), RangeError, INVALID_RANGE);
   },
 });
 
 Deno.test({
   name: "setting min > max option fails",
   fn: () => {
-    assertThrows(() => scor({ min: 1, max: 0.999 }), Error, INVALID_RANGE);
+    assertThrows(() => scor({ min: 1, max: 0.999 }), RangeError, INVALID_RANGE);
   },
 });
 
