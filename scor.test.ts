@@ -4,9 +4,13 @@ import {
   assertStrictEquals,
   assertThrows,
 } from "https://deno.land/std@0.119.0/testing/asserts.ts";
+import sinon from "https://cdn.skypack.dev/sinon@v12.0.1?dts";
 import {
   AllOptions,
+  getItemRange,
+  getZero,
   INVALID_RANGE,
+  MISSING_TO_VALUE,
   Scor,
   scor,
   setMax,
@@ -15,6 +19,7 @@ import {
   setToValue,
   ToValue,
 } from "./scor.ts";
+import { assertEquals } from "https://deno.land/std@0.114.0/testing/asserts.ts";
 import test = Deno.test;
 
 const assertReadonlyProperties = <Item>(
@@ -28,7 +33,7 @@ const assertReadonlyProperties = <Item>(
   // (some IDEs still mark the lines containing the assignment red)
   assertThrows(() => {
     // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
-    return score.toValue = () => 0;
+    return score.toValue = getZero;
   }, TypeError);
   assertStrictEquals(score.toValue, toValue);
   assertThrows(() => {
@@ -60,7 +65,7 @@ test("scor stores all explicit options", async (t) => {
     options.min++;
     assertStrictEquals(score.max, MAX);
 
-    options.toValue = () => 0;
+    options.toValue = getZero;
     assertStrictEquals(score.toValue, toValue);
   });
   assertReadonlyProperties(score, toValue, MIN, MAX);
@@ -94,7 +99,7 @@ test("not setting `toValue`", async (t) => {
   });
   await t.step("with a range `forItem` throws", () => {
     const score = scor({ min: 0, max: 1 }); // not providing `toValue` upfront is valid
-    assertThrows(() => score.forItem(0), Error); // but it doesn't allow `forItem`
+    assertThrows(() => score.forItem(0), TypeError, MISSING_TO_VALUE); // but it doesn't allow `forItem`
   });
 });
 
@@ -238,41 +243,118 @@ test("setting `getValue` and a range allows calls to `forItem`", () => {
 });
 
 test("`setMin` returns `Scor` with updated `min`", () => {
-  const toValue = () => 0;
-  const first = scor({ min: 0, max: 25, toValue });
+  const first = scor({ min: 0, max: 25, toValue: getZero });
   const second = setMin(first, 5);
   assert(first !== second);
   assertStrictEquals(second.min, 5);
   assertStrictEquals(second.max, 25);
-  assertStrictEquals(second.toValue, toValue);
+  assertStrictEquals(second.toValue, getZero);
 });
 
 test("`setMax` returns `Scor` with updated `min`", () => {
-  const toValue = () => 0;
-  const first = scor({ min: 0, max: 25, toValue });
+  const first = scor({ min: 0, max: 25, toValue: getZero });
   const second = setMax(first, 5);
   assert(first !== second);
   assertStrictEquals(second.min, 0);
   assertStrictEquals(second.max, 5);
-  assertStrictEquals(second.toValue, toValue);
+  assertStrictEquals(second.toValue, getZero);
 });
 
 test("`setRange` returns `Scor` with updated `min` and `max`", () => {
-  const toValue = () => 0;
-  const first = scor({ min: 0, max: 25, toValue });
+  const first = scor({ min: 0, max: 25, toValue: getZero });
   const second = setRange(first, 5, 10);
   assert(first !== second);
   assertStrictEquals(second.min, 5);
   assertStrictEquals(second.max, 10);
-  assertStrictEquals(second.toValue, toValue);
+  assertStrictEquals(second.toValue, getZero);
 });
 
 test("`setToValue` returns `Scor` with updated `toValue`", () => {
-  const toValue = () => 0;
   const first = scor({ min: 0, max: 25 });
-  const second = setToValue(first, toValue);
+  const second = setToValue(first, getZero);
   assert(first !== second);
   assertStrictEquals(second.min, 0);
   assertStrictEquals(second.max, 25);
-  assertStrictEquals(second.toValue, toValue);
+  assertStrictEquals(second.toValue, getZero);
+});
+
+test("`getItemRange`", async (t) => {
+  await t.step("throws if `toValue` is undefined", () => {
+    const items: unknown[] = [];
+    assertThrows(
+      () => {
+        getItemRange(undefined!, items);
+      },
+      TypeError,
+    );
+  });
+  await t.step("throws if items is empty", () => {
+    const items: unknown[] = [];
+    assertThrows(
+      () => {
+        getItemRange(getZero, items);
+      },
+      RangeError,
+      INVALID_RANGE,
+    );
+  });
+  const asNumber: ToValue<unknown> = (it) => {
+    return it as number;
+  };
+  await t.step("throws if `toValue` only returns NaN/undefined/null", () => {
+    const items: unknown[] = [NaN, undefined, null];
+
+    assertThrows(
+      () => {
+        getItemRange(asNumber, items);
+      },
+      RangeError,
+      INVALID_RANGE,
+    );
+  });
+  await t.step("throws when `toValue` throws", () => {
+    const items: unknown[] = [""];
+    const CUSTOM_ERROR = "CUSTOM ERROR";
+    const throwing = () => {
+      throw new Error(CUSTOM_ERROR);
+    };
+    assertThrows(
+      () => {
+        getItemRange(throwing, items);
+      },
+      Error,
+      CUSTOM_ERROR,
+    );
+  });
+  const getLength = (item: string) => item.length;
+  await t.step("calls `toValue` for each item and returns [min, max]", () => {
+    const items = ["a", "bc"];
+    const getLengthSpy = sinon.spy(getLength);
+    const range = getItemRange(getLengthSpy, items);
+    assertEquals(getLengthSpy.callCount, 2);
+    assertEquals(range, [1, 2]);
+  });
+  await t.step("returns [min, max] when there is only one item", () => {
+    const items = ["abc"];
+    const range = getItemRange(getLength, items);
+    assertEquals(range, [3, 3]);
+  });
+  await t.step("returns correct [min, max] ignoring order of items", () => {
+    const items = ["abc", ""];
+    const range = getItemRange(getLength, items);
+    assertEquals(range, [0, 3]);
+  });
+  await t.step("returns correct [min, max] for only negative values", () => {
+    const items = [-10, -500, -300];
+    const range = getItemRange(asNumber, items);
+    assertEquals(range, [-500, -10]);
+  });
+  await t.step(
+    "returns correct [min, max] when NaN/undefined/null are contained in values",
+    () => {
+      const items = [50, NaN, 100, undefined, 50, null, 75];
+      const range = getItemRange(asNumber, items);
+      assertEquals(range, [50, 100]);
+    },
+  );
 });

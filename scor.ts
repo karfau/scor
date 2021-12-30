@@ -29,10 +29,12 @@ export interface AllOptions<T> {
 export type OptionsArg<T> = Readonly<Partial<AllOptions<T>>>;
 
 export const INVALID_RANGE = "Invalid range";
+export const MISSING_TO_VALUE = "Missing toValue";
 
-const forValueNotAllowed = (): never => {
+export const forValueNotAllowed = (): never => {
   throw new RangeError(INVALID_RANGE);
 };
+export const getZero = () => 0;
 
 /**
  * API to convert values or items into a score.
@@ -78,6 +80,26 @@ export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
   scor({ min, max, toValue });
 
 /**
+ * Determine a range from `items`, by using `toValue` on each item.
+ *
+ * @param toValue Method to map an item to a value
+ * @param items The list of items to map using `toValue`
+ *
+ * @throws {TypeError} if `toValue` is not a function
+ * @throws {RangeError} if there are no values or only `NaN`(/`undefined`/`null`)
+ * @throws {unknown} whatever `toValue` throws
+ */
+export const getItemRange = <T>(toValue: ToValue<T>, items: T[]) => {
+  const values = items.map(toValue).filter((n) => n !== null && !isNaN(n));
+  if (values.length === 0) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected at least one numeric value.`,
+    );
+  }
+  return [Math.min(...values), Math.max(...values)];
+};
+
+/**
  * Creates a `Scor` with an updated `toValue`.
  */
 export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
@@ -115,8 +137,8 @@ export const scor = <T>(
   if (min === max) {
     return Object.freeze({
       ...common,
-      forItem: () => 0,
-      forValue: () => 0,
+      forItem: getZero,
+      forValue: getZero,
       setMin,
       setMax,
     });
@@ -131,7 +153,7 @@ export const scor = <T>(
   return Object.freeze({
     ...common,
     forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
-      throw new Error("missing toValue");
+      throw new TypeError(MISSING_TO_VALUE);
     },
     forValue,
     setMin,
