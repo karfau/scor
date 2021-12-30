@@ -68,19 +68,19 @@ export const scor = <T>(
   if (max !== undefined && isNaN(max)) throw new Error(INVALID_RANGE);
   const explicit = { min, max, toValue };
   if (min === undefined || max === undefined) {
-    return {
+    return Object.freeze({
       ...explicit,
       forItem: forValueNotAllowed,
       forValue: forValueNotAllowed,
-    };
+    });
   }
   if (min > max) throw new Error(INVALID_RANGE);
   if (min === max) {
-    return {
+    return Object.freeze({
       ...explicit,
       forItem: () => 0,
       forValue: () => 0,
-    };
+    });
   }
   const maxFromZero = max - min;
 
@@ -89,11 +89,11 @@ export const scor = <T>(
     if (value >= max) return 1;
     return (value - min) / maxFromZero;
   };
-  return {
+  return Object.freeze({
     ...explicit,
     forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
       throw new Error("missing toValue");
     },
     forValue,
-  };
+  });
 };

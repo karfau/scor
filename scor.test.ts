@@ -3,38 +3,57 @@ import {
   assertStrictEquals,
   assertThrows,
 } from "https://deno.land/std@0.119.0/testing/asserts.ts";
-import { AllOptions, GetValue, INVALID_RANGE, scor } from "./scor.ts";
+import { AllOptions, GetValue, INVALID_RANGE, Scor, scor } from "./scor.ts";
 
+const assertReadonlyProperties = <Item>(
+  score: Scor<Item>,
+  toValue: (item: Item) => number,
+  MIN?: number,
+  MAX?: number,
+) => {
+  // the following makes sure the fields are readonly
+  // removing the comments would make the test fail
+  // (some IDEs still mark the lines containing the assignment red)
+  assertThrows(() => {
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
+    return score.toValue = () => 0;
+  }, TypeError);
+  assertStrictEquals(score.toValue, toValue);
+  assertThrows(() => {
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'min' because it is a read-only property.
+    score.min++;
+  }, TypeError);
+  assertStrictEquals(score.min, MIN);
+  assertThrows(() => {
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
+    score.max++;
+  }, TypeError);
+  assertStrictEquals(score.max, MAX);
+};
 Deno.test({
   name: "scor stores all explicit options",
-  fn: () => {
+  fn: async (t) => {
     type Item = { p: number };
     const toValue: GetValue<Item> = (item) => item.p;
-    const options: AllOptions<Item> = { min: 1, max: 5, toValue };
+    const MIN = 1;
+    const MAX = 5;
+    const options: AllOptions<Item> = { min: MIN, max: MAX, toValue };
     const score = scor(options);
     assertObjectMatch(
       score,
       options as unknown as Record<string, unknown>,
     );
-    options.min--;
-    assertStrictEquals(score.min, 1);
+    await t.step("modifying the options doesn't modify the Scor", () => {
+      options.min--;
+      assertStrictEquals(score.min, MIN);
 
-    options.min++;
-    assertStrictEquals(score.max, 5);
+      options.min++;
+      assertStrictEquals(score.max, MAX);
 
-    options.toValue = () => 0;
-    assertStrictEquals(score.toValue, toValue);
-
-    // the following makes sure the fields are readonly
-    // removing the comments would make the test fail
-    // (some IDEs still mark the lines containing the assignment red)
-    // This is not sufficient for JS runtime, since the following lines do actually modify the object.
-    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
-    score.toValue = () => 0;
-    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'min' because it is a read-only property.
-    score.min++;
-    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
-    score.max++;
+      options.toValue = () => 0;
+      assertStrictEquals(score.toValue, toValue);
+    });
+    assertReadonlyProperties(score, toValue, MIN, MAX);
   },
 });
 
@@ -49,6 +68,7 @@ Deno.test({
       const toValue = (item: unknown[]) => item.length;
       const score = scor({ toValue });
       assertStrictEquals(score.toValue, toValue);
+      assertReadonlyProperties(score, toValue);
     });
     await t.step("when both are not set `forValue` throws", () => {
       const score = scor({ min: 7 }); // only providing `min` is valid
@@ -106,6 +126,7 @@ Deno.test({
       const toValue = (item: unknown[]) => item.length;
       const score = scor({ min: 0, max: 0, toValue });
       assertStrictEquals(score.toValue, toValue);
+      assertReadonlyProperties(score, toValue, 0, 0);
     });
   },
 });
