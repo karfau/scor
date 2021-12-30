@@ -10,6 +10,7 @@ import {
   getItemRange,
   getZero,
   INVALID_RANGE,
+  isNumeric,
   MISSING_TO_VALUE,
   Scor,
   scor,
@@ -21,6 +22,9 @@ import {
 } from "./scor.ts";
 import { assertEquals } from "https://deno.land/std@0.114.0/testing/asserts.ts";
 import test = Deno.test;
+
+const NOT_NUMERIC_NULL = [NaN, null, -Infinity, Infinity];
+const NOT_NUMERIC_NULL_UNDEF = [...NOT_NUMERIC_NULL, undefined];
 
 const assertReadonlyProperties = <Item>(
   score: Scor<Item>,
@@ -103,9 +107,14 @@ test("not setting `toValue`", async (t) => {
   });
 });
 
-test("min, max options can not be NaN", () => {
-  assertThrows(() => scor({ min: NaN }), RangeError, INVALID_RANGE);
-  assertThrows(() => scor({ max: NaN }), RangeError, INVALID_RANGE);
+test("min, max options have to be numeric", async (t) => {
+  for (const notNumeric of NOT_NUMERIC_NULL) {
+    const nn: number = notNumeric as unknown as number;
+    await t.step(`${notNumeric}`, () => {
+      assertThrows(() => scor({ min: nn }), RangeError, INVALID_RANGE);
+      assertThrows(() => scor({ max: nn }), RangeError, INVALID_RANGE);
+    });
+  }
 });
 
 test("setting min > max option fails", () => {
@@ -145,7 +154,10 @@ test(
     assertStrictEquals(score.forValue(99.999), 0.9999899999999999);
     assertStrictEquals(score.forValue(100), 1);
     assertStrictEquals(score.forValue(101), 1);
-    assertStrictEquals(score.forValue(NaN), 0);
+    for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+      const nn: number = notNumeric as unknown as number;
+      assertStrictEquals(score.forValue(nn), 0);
+    }
   },
 );
 
@@ -164,7 +176,10 @@ test(
     assertStrictEquals(score.forValue(199.999), 0.9999899999999999);
     assertStrictEquals(score.forValue(200), 1);
     assertStrictEquals(score.forValue(201), 1);
-    assertStrictEquals(score.forValue(NaN), 0);
+    for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+      const nn: number = notNumeric as unknown as number;
+      assertStrictEquals(score.forValue(nn), 0);
+    }
   },
 );
 
@@ -183,7 +198,10 @@ test(
     assertStrictEquals(score.forValue(-0.001), 0.9999899999999999);
     assertStrictEquals(score.forValue(0), 1);
     assertStrictEquals(score.forValue(1), 1);
-    assertStrictEquals(score.forValue(NaN), 0);
+    for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+      const nn: number = notNumeric as unknown as number;
+      assertStrictEquals(score.forValue(nn), 0);
+    }
   },
 );
 
@@ -202,7 +220,10 @@ test(
     assertStrictEquals(score.forValue(-100.001), 0.9999899999999999);
     assertStrictEquals(score.forValue(-100), 1);
     assertStrictEquals(score.forValue(-99), 1);
-    assertStrictEquals(score.forValue(NaN), 0);
+    for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+      const nn: number = notNumeric as unknown as number;
+      assertStrictEquals(score.forValue(nn), 0);
+    }
   },
 );
 
@@ -221,7 +242,10 @@ test(
     assertStrictEquals(score.forValue(99.98), 0.9999000000000001);
     assertStrictEquals(score.forValue(100), 1);
     assertStrictEquals(score.forValue(101), 1);
-    assertStrictEquals(score.forValue(NaN), 0);
+    for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+      const nn: number = notNumeric as unknown as number;
+      assertStrictEquals(score.forValue(nn), 0);
+    }
   },
 );
 
@@ -239,7 +263,10 @@ test("setting `getValue` and a range allows calls to `forItem`", () => {
   assertStrictEquals(score.forItem({ p: 99.999 }), 0.9999899999999999);
   assertStrictEquals(score.forItem({ p: 100 }), 1);
   assertStrictEquals(score.forItem({ p: 101 }), 1);
-  assertStrictEquals(score.forItem({ p: NaN }), 0);
+  for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+    const nn: number = notNumeric as unknown as number;
+    assertStrictEquals(score.forValue(nn), 0);
+  }
 });
 
 test("`setMin` returns `Scor` with updated `min`", () => {
@@ -278,6 +305,19 @@ test("`setToValue` returns `Scor` with updated `toValue`", () => {
   assertStrictEquals(second.toValue, getZero);
 });
 
+test("`isNumeric`", async (t) => {
+  for (const value of NOT_NUMERIC_NULL_UNDEF) {
+    await t.step(`returns false for ${value}`, () => {
+      assert(isNumeric(value) === false);
+    });
+  }
+  for (const value of [-1, 0, 1]) {
+    await t.step(`returns false for ${value}`, () => {
+      assert(isNumeric(value) === true);
+    });
+  }
+});
+
 test("`getItemRange`", async (t) => {
   await t.step("throws if `toValue` is undefined", () => {
     const items: unknown[] = [];
@@ -301,8 +341,8 @@ test("`getItemRange`", async (t) => {
   const asNumber: ToValue<unknown> = (it) => {
     return it as number;
   };
-  await t.step("throws if `toValue` only returns NaN/undefined/null", () => {
-    const items: unknown[] = [NaN, undefined, null];
+  await t.step("throws if `toValue` doesn't returns any numeric value", () => {
+    const items: unknown[] = NOT_NUMERIC_NULL_UNDEF;
 
     assertThrows(
       () => {
@@ -350,9 +390,9 @@ test("`getItemRange`", async (t) => {
     assertEquals(range, [-500, -10]);
   });
   await t.step(
-    "returns correct [min, max] when NaN/undefined/null are contained in values",
+    "returns correct [min, max] when mixed numeric and not numeric values",
     () => {
-      const items = [50, NaN, 100, undefined, 50, null, 75];
+      const items = [50, ...NOT_NUMERIC_NULL_UNDEF, 100, 75];
       const range = getItemRange(asNumber, items);
       assertEquals(range, [50, 100]);
     },

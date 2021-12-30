@@ -37,6 +37,12 @@ export const forValueNotAllowed = (): never => {
 export const getZero = () => 0;
 
 /**
+ * A typeguard that only returns `true` for `number`s excluding `NaN`, `-Infinity` or `Infinity`.
+ */
+export const isNumeric = (x: number | null | undefined): x is number =>
+  typeof x === "number" && -Infinity < x && x < Infinity;
+
+/**
  * API to convert values or items into a score.
  * @see scor
  */
@@ -60,21 +66,24 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
 
 /**
  * Creates a `Scor` with an updated `min`.
- * @throws If `min` is `NaN`.
+ * @throws If `min` is not numeric.
+ * @see isNumeric
  */
 export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
   scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated `max`.
- * @throws If `max` is `NaN`.
+ * @throws If `max` is not numeric.
+ * @see isNumeric
  */
 export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
   scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated range.
- * @throws If one of the arguments is `NaN`.
+ * @throws If one of the arguments is not numeric.
+ * @see isNumeric
  */
 export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
   scor({ min, max, toValue });
@@ -86,11 +95,11 @@ export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
  * @param items The list of items to map using `toValue`
  *
  * @throws {TypeError} if `toValue` is not a function
- * @throws {RangeError} if there are no values or only `NaN`(/`undefined`/`null`)
+ * @throws {RangeError} if there are no numeric values
  * @throws {unknown} whatever `toValue` throws
  */
 export const getItemRange = <T>(toValue: ToValue<T>, items: T[]) => {
-  const values = items.map(toValue).filter((n) => n !== null && !isNaN(n));
+  const values = items.map(toValue).filter(isNumeric);
   if (values.length === 0) {
     throw new RangeError(
       `${INVALID_RANGE}: Expected at least one numeric value.`,
@@ -108,16 +117,16 @@ export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
 /**
  * Creates a `Scor` that can take a range (min and max values) to calculate a score for a value.
  * A score is always between 0 and 1, even if the provided value is outside the range.
- * Trying to set either end of the range to `NaN` with throw an error.
+ * @throws When trying to set either end of the range to a value that is not numeric.
  */
 export const scor = <T>(
   { min, max, toValue }: OptionsArg<T> = {},
 ): never | Scor<T> => {
-  if (min !== undefined && isNaN(min)) {
-    throw new RangeError(`${INVALID_RANGE}: Expected min to not be NaN`);
+  if (min !== undefined && !isNumeric(min)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected min to be numeric`);
   }
-  if (max !== undefined && isNaN(max)) {
-    throw new RangeError(`${INVALID_RANGE}: Expected max to not be NaN`);
+  if (max !== undefined && !isNumeric(max)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected max to be numeric`);
   }
   const common = { min, max, toValue };
   if (min === undefined || max === undefined) {
@@ -146,7 +155,7 @@ export const scor = <T>(
   const maxFromZero = max - min;
 
   const forValue = (value: number) => {
-    if (value <= min || isNaN(value)) return 0;
+    if (value <= min || !isNumeric(value)) return 0;
     if (value >= max) return 1;
     return (value - min) / maxFromZero;
   };
