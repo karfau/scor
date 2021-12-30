@@ -13,33 +13,28 @@ Deno.test({
     const options: AllOptions<Item> = { min: 1, max: 5, toValue };
     const score = scor(options);
     assertObjectMatch(
-      score.explicit,
+      score,
       options as unknown as Record<string, unknown>,
     );
     options.min--;
-    assertStrictEquals(score.explicit.min, 1);
+    assertStrictEquals(score.min, 1);
 
     options.min++;
-    assertStrictEquals(score.explicit.max, 5);
+    assertStrictEquals(score.max, 5);
 
     options.toValue = () => 0;
-    assertStrictEquals(score.explicit.toValue, toValue);
+    assertStrictEquals(score.toValue, toValue);
 
     // the following makes sure the fields are readonly
     // removing the comments would make the test fail
     // (some IDEs still mark the lines containing the assignment red)
     // This is not sufficient for JS runtime, since the following lines do actually modify the object.
-    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'explicit' because it is a read-only property.
-    score.explicit = {};
-    score.explicit
-      // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
-      .toValue = () => 0;
-    score.explicit
-      // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'min' because it is a read-only property.
-      .min++;
-    score.explicit
-      // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
-      .max++;
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
+    score.toValue = () => 0;
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'min' because it is a read-only property.
+    score.min++;
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
+    score.max++;
   },
 });
 
@@ -53,7 +48,7 @@ Deno.test({
     await t.step("stores `toValue`", () => {
       const toValue = (item: unknown[]) => item.length;
       const score = scor({ toValue });
-      assertStrictEquals(score.explicit.toValue, toValue);
+      assertStrictEquals(score.toValue, toValue);
     });
     await t.step("when both are not set `forValue` throws", () => {
       const score = scor({ min: 7 }); // only providing `min` is valid
@@ -110,7 +105,7 @@ Deno.test({
     await t.step("stores `toValue`", () => {
       const toValue = (item: unknown[]) => item.length;
       const score = scor({ min: 0, max: 0, toValue });
-      assertStrictEquals(score.explicit.toValue, toValue);
+      assertStrictEquals(score.toValue, toValue);
     });
   },
 });

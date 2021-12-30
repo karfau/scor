@@ -38,11 +38,7 @@ const forValueNotAllowed = (): never => {
  * API to convert values or items into a score.
  * @see scor
  */
-export interface Scor<T> {
-  /**
-   * The options as they were provided to `scor`.
-   */
-  readonly explicit: Readonly<Partial<AllOptions<T>>>;
+export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
   /**
    * Returns the score for `item`.
    * If the range has no length (`min == max`) the value is always 0.
@@ -73,7 +69,7 @@ export const scor = <T>(
   const explicit = { min, max, toValue };
   if (min === undefined || max === undefined) {
     return {
-      explicit,
+      ...explicit,
       forItem: forValueNotAllowed,
       forValue: forValueNotAllowed,
     };
@@ -81,7 +77,7 @@ export const scor = <T>(
   if (min > max) throw new Error(INVALID_RANGE);
   if (min === max) {
     return {
-      explicit,
+      ...explicit,
       forItem: () => 0,
       forValue: () => 0,
     };
@@ -94,7 +90,7 @@ export const scor = <T>(
     return (value - min) / maxFromZero;
   };
   return {
-    explicit,
+    ...explicit,
     forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
       throw new Error("missing toValue");
     },
