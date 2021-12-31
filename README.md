@@ -1,7 +1,6 @@
 # scor
 
-Calculate scores (`0...1`) for numeric values or items, ~~and get the (weighted)
-average score for each item~~.
+Calculate scores (`0...1`) for numeric values or items, ~~and get the total score (aka "[(weighted) arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean)") from multiple scores~~.
 
 The above sentence represents the goal of this library. Things that are not
 provided yet are struck out.
@@ -72,9 +71,14 @@ import { getPackagesData } from "./npm";
 
 const packages = await getPackagesData();
 const scors = {
-  downloads: scorForItems((p) => Math.log10(p.downloads), packages),
+  downloads: scorForItems(
+    // toValue converts an item to a numeric value, in this case with a log10 scale
+    (p) => Math.log10(p.downloads), 
+    packages,
+  ),
   maintainers: scorForItems((p) => p.maintainers.length, packages),
 };
+// one way to calculate indivudual scores for each item
 const scores = packages.map((p) => ({
   name: p.name,
   downloadScore: scors.downloads.forItem(p),
