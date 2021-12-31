@@ -15,7 +15,8 @@ Imagine you
 
 For example, let's look at npm packages. Possible criteria are:
 
-- Number of maintainers
+- number of maintainers
+- number of dependencies (direct/transient)
 - time since last published version
 - version (major < 1?) / dist-tags
 - weekly downloads
@@ -59,3 +60,34 @@ the rest of the code.
 - A `Scor` never keeps references to the items it is scoring.
 - To be implemented: Multiple `Scor`s can easily be combined into a single
   overall weighted score per item, e.g. to use it for sorting
+
+## Usage
+
+(This has not been published as a package yet, but you can of course fetch the
+code from github.)
+
+```ts
+import { scorForItems } from "scor"; // I hope to publish on deno.land soon
+import { getPackagesData } from "./npm";
+
+const packages = await getPackagesData();
+const scors = {
+  downloads: scorForItems((p) => Math.log10(p.downloads), packages),
+  maintainers: scorForItems((p) => p.maintainers.length, packages),
+};
+const scores = packages.map((p) => ({
+  name: p.name,
+  downloadScore: scors.downloads.forItem(p),
+  maintainerScore: scors.maintainers.forItem(p),
+}));
+```
+
+## TODOs
+
+Contributions are welcome!
+
+- WIP: finish goals from above
+- proof that test are working in each pushed commit/branch
+- create first tag
+- publish to `deno.land/x/`
+- publish to npm(?)
