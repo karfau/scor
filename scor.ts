@@ -14,7 +14,7 @@ export interface AllOptions<T> {
    */
   max: number;
   /**
-   * Method to resolve the numeric value from an item.
+   * Method to resolve a numeric value from an item.
    */
   toValue: ToValue<T>;
 }
@@ -51,8 +51,10 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    * Returns the score for `item`.
    * If the range has no length (`min == max`) the value is always 0.
    *
-   * @throws {RangeError} If the range is not limited on both sides.
-   * @throws {Error} If the `toValue` is not configured.
+   * @throws {RangeError} If the range is not set to a numeric value on both sides.
+   * @throws {TypeError} If the `toValue` is not configured.
+   *
+   * @see isNumeric
    */
   forItem(item: T): never | number;
   /**
@@ -63,6 +65,83 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    */
   forValue(value: number): never | number;
 }
+
+/**
+ * Creates a `Scor` that can take a range (min and max values) to calculate a score for a value.
+ * A score is always between 0 and 1, even if the provided value is outside the range.
+ * @throws When trying to set either end of the range to a value that is not numeric.
+ *
+ * @see isNumeric
+ */
+export const scor = <T>(
+  { min, max, toValue }: OptionsArg<T> = {},
+): never | Scor<T> => {
+  if (min !== undefined && !isNumeric(min)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected min to be numeric`);
+  }
+  if (max !== undefined && !isNumeric(max)) {
+    throw new RangeError(`${INVALID_RANGE}: Expected max to be numeric`);
+  }
+  const common = { min, max, toValue };
+  if (min === undefined || max === undefined) {
+    return Object.freeze({
+      ...common,
+      forItem: forValueNotAllowed,
+      forValue: forValueNotAllowed,
+    });
+  }
+  if (min > max) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected min(${min}) < max(${max})`,
+    );
+  }
+  if (min === max) {
+    return Object.freeze({
+      ...common,
+      forItem: getZero,
+      forValue: getZero,
+    });
+  }
+  const maxFromZero = max - min;
+
+  const forValue = (value: number) => {
+    if (value <= min || !isNumeric(value)) return 0;
+    if (value >= max) return 1;
+    return (value - min) / maxFromZero;
+  };
+  return Object.freeze({
+    ...common,
+    forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
+      throw new TypeError(MISSING_TO_VALUE);
+    },
+    forValue,
+  });
+};
+
+/**
+ * Determine a range from `items`, by using `toValue` on each item.
+ *
+ * @param toValue Method to map an item to a numeric value
+ * @param items The list of items to map using `toValue`
+ *
+ * @throws {TypeError} if `toValue` is not a function
+ * @throws {RangeError} if there are no numeric values
+ * @throws {unknown} whatever `toValue` throws
+ *
+ * @see isNumeric
+ */
+export const getItemRange = <T>(
+  toValue: ToValue<T>,
+  items: T[],
+): [min: number, max: number] => {
+  const values = items.map(toValue).filter(isNumeric);
+  if (values.length === 0) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected at least one numeric value.`,
+    );
+  }
+  return [Math.min(...values), Math.max(...values)];
+};
 
 /**
  * Creates a `Scor` with an updated `min`.
@@ -89,83 +168,7 @@ export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
   scor({ min, max, toValue });
 
 /**
- * Determine a range from `items`, by using `toValue` on each item.
- *
- * @param toValue Method to map an item to a value
- * @param items The list of items to map using `toValue`
- *
- * @throws {TypeError} if `toValue` is not a function
- * @throws {RangeError} if there are no numeric values
- * @throws {unknown} whatever `toValue` throws
- */
-export const getItemRange = <T>(toValue: ToValue<T>, items: T[]) => {
-  const values = items.map(toValue).filter(isNumeric);
-  if (values.length === 0) {
-    throw new RangeError(
-      `${INVALID_RANGE}: Expected at least one numeric value.`,
-    );
-  }
-  return [Math.min(...values), Math.max(...values)];
-};
-
-/**
  * Creates a `Scor` with an updated `toValue`.
  */
 export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
   scor({ min, max, toValue });
-
-/**
- * Creates a `Scor` that can take a range (min and max values) to calculate a score for a value.
- * A score is always between 0 and 1, even if the provided value is outside the range.
- * @throws When trying to set either end of the range to a value that is not numeric.
- */
-export const scor = <T>(
-  { min, max, toValue }: OptionsArg<T> = {},
-): never | Scor<T> => {
-  if (min !== undefined && !isNumeric(min)) {
-    throw new RangeError(`${INVALID_RANGE}: Expected min to be numeric`);
-  }
-  if (max !== undefined && !isNumeric(max)) {
-    throw new RangeError(`${INVALID_RANGE}: Expected max to be numeric`);
-  }
-  const common = { min, max, toValue };
-  if (min === undefined || max === undefined) {
-    return Object.freeze({
-      ...common,
-      forItem: forValueNotAllowed,
-      forValue: forValueNotAllowed,
-      setMin,
-      setMax,
-    });
-  }
-  if (min > max) {
-    throw new RangeError(
-      `${INVALID_RANGE}: Expected min(${min}) < max(${max})`,
-    );
-  }
-  if (min === max) {
-    return Object.freeze({
-      ...common,
-      forItem: getZero,
-      forValue: getZero,
-      setMin,
-      setMax,
-    });
-  }
-  const maxFromZero = max - min;
-
-  const forValue = (value: number) => {
-    if (value <= min || !isNumeric(value)) return 0;
-    if (value >= max) return 1;
-    return (value - min) / maxFromZero;
-  };
-  return Object.freeze({
-    ...common,
-    forItem: toValue ? (item: T) => forValue(toValue(item)) : () => {
-      throw new TypeError(MISSING_TO_VALUE);
-    },
-    forValue,
-    setMin,
-    setMax,
-  });
-};
