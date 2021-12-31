@@ -17,6 +17,14 @@ export interface AllOptions<T> {
    * Method to resolve a numeric value from an item.
    */
   toValue: ToValue<T>;
+  /**
+   * The weight of the score when it is used to create a total score
+   * from multiple scores.
+   * Scores that do not configure it equally share the same remaining weight.
+   * Values are percentages in the range from 0 (0%) to 1 (100%),
+   * negative values will throw an error.
+   */
+  weight?: number;
 }
 
 /**
@@ -69,12 +77,13 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
 /**
  * Creates a `Scor` that can take a range (min and max values) to calculate a score for a value.
  * A score is always between 0 and 1, even if the provided value is outside the range.
- * @throws When trying to set either end of the range to a value that is not numeric.
+ * @throws {RangeError} When setting either end of the range to a value that is not numeric.
+ * @throws {RangeError} When setting the weight to a value that is not numeric or is negative.
  *
  * @see isNumeric
  */
 export const scor = <T>(
-  { min, max, toValue }: OptionsArg<T> = {},
+  { min, max, toValue, weight }: OptionsArg<T> = {},
 ): never | Scor<T> => {
   if (min !== undefined && !isNumeric(min)) {
     throw new RangeError(`${INVALID_RANGE}: Expected min to be numeric`);
@@ -82,7 +91,12 @@ export const scor = <T>(
   if (max !== undefined && !isNumeric(max)) {
     throw new RangeError(`${INVALID_RANGE}: Expected max to be numeric`);
   }
-  const common = { min, max, toValue };
+  if (weight !== undefined && (!isNumeric(weight) || weight < 0)) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected weight to be numeric and >= 0`,
+    );
+  }
+  const common = { min, max, toValue, weight };
   if (min === undefined || max === undefined) {
     return Object.freeze({
       ...common,
@@ -148,6 +162,9 @@ export const getItemRange = <T>(
  * (by using `getItemRange`).
  * @param toValue will be passed to `getItemRange` and `scor`
  * @param items the data to analyse to determine the range
+ *
+ * @see getItemRange
+ * @see scor;
  */
 export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
   const [min, max] = getItemRange(toValue, items);
@@ -156,30 +173,48 @@ export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
 
 /**
  * Creates a `Scor` with an updated `min`.
- * @throws If `min` is not numeric.
+ * @throws {RangeError} If `min` is not numeric.
  * @see isNumeric
  */
-export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
-  scor({ min, max, toValue });
+export const setMin = <T>({ max, toValue, weight }: Scor<T>, min: number) =>
+  scor({ min, max, toValue, weight });
 
 /**
  * Creates a `Scor` with an updated `max`.
- * @throws If `max` is not numeric.
+ * @throws {RangeError} If `max` is not numeric.
  * @see isNumeric
  */
-export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
-  scor({ min, max, toValue });
+export const setMax = <T>({ min, toValue, weight }: Scor<T>, max: number) =>
+  scor({ min, max, toValue, weight });
 
 /**
  * Creates a `Scor` with an updated range.
- * @throws If one of the arguments is not numeric.
+ * @throws {RangeError} If one of the arguments is not numeric.
  * @see isNumeric
  */
-export const setRange = <T>({ toValue }: Scor<T>, min: number, max: number) =>
-  scor({ min, max, toValue });
+export const setRange = <T>(
+  { toValue, weight }: Scor<T>,
+  min: number,
+  max: number,
+) => scor({ min, max, toValue, weight });
 
 /**
  * Creates a `Scor` with an updated `toValue`.
  */
-export const setToValue = <T>({ min, max }: Scor<T>, toValue: ToValue<T>) =>
-  scor({ min, max, toValue });
+export const setToValue = <T>(
+  { min, max, weight }: Scor<T>,
+  toValue: ToValue<T>,
+) => scor({ min, max, toValue, weight });
+
+/**
+ * Creates a `Scor` with an updated `weight`.
+ * @throws {RangeError} If `weight` is not numeric or negative.
+ *         `undefined` is allowed to restore equal distribution.
+ *
+ * @see isNumeric
+ * @see AllOptions.weight
+ */
+export const setWeight = <T>(
+  { min, max, toValue }: Scor<T>,
+  weight: number | undefined,
+) => scor({ min, max, toValue, weight });

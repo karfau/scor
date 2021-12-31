@@ -19,6 +19,7 @@ import {
   setMin,
   setRange,
   setToValue,
+  setWeight,
   ToValue,
 } from "./scor.ts";
 import { assertEquals } from "https://deno.land/std@0.114.0/testing/asserts.ts";
@@ -30,8 +31,9 @@ const NOT_NUMERIC_NULL_UNDEF = [...NOT_NUMERIC_NULL, undefined];
 const assertReadonlyProperties = <Item>(
   score: Scor<Item>,
   toValue: (item: Item) => number,
-  MIN?: number,
-  MAX?: number,
+  min?: number,
+  max?: number,
+  weight?: number,
 ) => {
   // the following makes sure the fields are readonly
   // removing the comments would make the test fail
@@ -45,19 +47,30 @@ const assertReadonlyProperties = <Item>(
     // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'min' because it is a read-only property.
     score.min++;
   }, TypeError);
-  assertStrictEquals(score.min, MIN);
+  assertStrictEquals(score.min, min);
   assertThrows(() => {
     // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
     score.max++;
   }, TypeError);
-  assertStrictEquals(score.max, MAX);
+  assertStrictEquals(score.max, max);
+  assertThrows(() => {
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'max' because it is a read-only property.
+    score.weight++;
+  }, TypeError);
+  assertStrictEquals(score.weight, weight);
 };
 test("scor stores all explicit options", async (t) => {
   type Item = { p: number };
   const toValue: ToValue<Item> = (item) => item.p;
   const MIN = 1;
   const MAX = 5;
-  const options: AllOptions<Item> = { min: MIN, max: MAX, toValue };
+  const WEIGHT = 0.5;
+  const options: AllOptions<Item> = {
+    min: MIN,
+    max: MAX,
+    toValue,
+    weight: WEIGHT,
+  };
   const score = scor(options);
   assertObjectMatch(
     score,
@@ -72,9 +85,12 @@ test("scor stores all explicit options", async (t) => {
 
     options.toValue = getZero;
     assertStrictEquals(score.toValue, toValue);
+
+    options.weight!++;
+    assertStrictEquals(score.weight, WEIGHT);
   });
   await t.step("modifying the the Scor throws", () => {
-    assertReadonlyProperties(score, toValue, MIN, MAX);
+    assertReadonlyProperties(score, toValue, MIN, MAX, WEIGHT);
   });
 });
 
@@ -122,6 +138,18 @@ test("min, max options have to be numeric", async (t) => {
 
 test("setting min > max option fails", () => {
   assertThrows(() => scor({ min: 1, max: 0.999 }), RangeError, INVALID_RANGE);
+});
+
+test("setting weight option fails", async (t) => {
+  for (const notNumeric of NOT_NUMERIC_NULL) {
+    const weight: number = notNumeric as unknown as number;
+    await t.step(`for ${notNumeric}`, () => {
+      assertThrows(() => scor({ weight }), RangeError, INVALID_RANGE);
+    });
+  }
+  await t.step(`for negative values`, () => {
+    assertThrows(() => scor({ weight: -0.1 }), RangeError, INVALID_RANGE);
+  });
 });
 
 test("setting min == max option", async (t) => {
@@ -252,7 +280,7 @@ test(
   },
 );
 
-test("setting `getValue` and a range allows calls to `forItem`", () => {
+test("setting `toValue` and a range allows calls to `forItem`", () => {
   const toValue = (item: { p: number }) => item.p;
   const score = scor({ min: 0, max: 100, toValue });
   assertStrictEquals(score.forItem({ p: -1 }), 0);
@@ -273,39 +301,82 @@ test("setting `getValue` and a range allows calls to `forItem`", () => {
 });
 
 test("`setMin` returns `Scor` with updated `min`", () => {
-  const first = scor({ min: 0, max: 25, toValue: getZero });
+  const first = scor({ min: 0, max: 25, toValue: getZero, weight: 0.1 });
+
   const second = setMin(first, 5);
+
   assert(first !== second);
   assertStrictEquals(second.min, 5);
   assertStrictEquals(second.max, 25);
   assertStrictEquals(second.toValue, getZero);
+  assertStrictEquals(second.weight, 0.1);
 });
 
 test("`setMax` returns `Scor` with updated `min`", () => {
-  const first = scor({ min: 0, max: 25, toValue: getZero });
+  const first = scor({ min: 0, max: 25, toValue: getZero, weight: 0.2 });
+
   const second = setMax(first, 5);
+
   assert(first !== second);
   assertStrictEquals(second.min, 0);
   assertStrictEquals(second.max, 5);
   assertStrictEquals(second.toValue, getZero);
+  assertStrictEquals(second.weight, 0.2);
 });
 
 test("`setRange` returns `Scor` with updated `min` and `max`", () => {
-  const first = scor({ min: 0, max: 25, toValue: getZero });
+  const first = scor({ min: 0, max: 25, toValue: getZero, weight: 0.3 });
+
   const second = setRange(first, 5, 10);
+
   assert(first !== second);
   assertStrictEquals(second.min, 5);
   assertStrictEquals(second.max, 10);
   assertStrictEquals(second.toValue, getZero);
+  assertStrictEquals(second.weight, 0.3);
 });
 
 test("`setToValue` returns `Scor` with updated `toValue`", () => {
-  const first = scor({ min: 0, max: 25 });
+  const first = scor({ min: 0, max: 25, weight: 0.4 });
+
   const second = setToValue(first, getZero);
+
   assert(first !== second);
   assertStrictEquals(second.min, 0);
   assertStrictEquals(second.max, 25);
   assertStrictEquals(second.toValue, getZero);
+  assertStrictEquals(second.weight, 0.4);
+});
+
+test("`setWeight` ", async (t) => {
+  await t.step("returns `Scor` with updated `weight`", () => {
+    const first = scor({ min: 17, max: 25, toValue: getZero, weight: 0.9 });
+
+    const second = setWeight(first, 0.6);
+
+    assert(first !== second);
+    assertStrictEquals(second.min, 17);
+    assertStrictEquals(second.max, 25);
+    assertStrictEquals(second.toValue, getZero);
+    assertStrictEquals(second.weight, 0.6);
+  });
+  await t.step("accepts value `undefined`", () => {
+    const first = scor({ min: 17, max: 25, toValue: getZero, weight: 0.8 });
+
+    const second = setWeight(first, undefined);
+
+    assertStrictEquals(second.weight, undefined);
+  });
+});
+
+test("`setWeight` returns `Scor` with updated `weight`", () => {
+  const first = scor({ min: 17, max: 25, toValue: getZero, weight: 0.9 });
+  const second = setWeight(first, 0.6);
+  assert(first !== second);
+  assertStrictEquals(second.min, 17);
+  assertStrictEquals(second.max, 25);
+  assertStrictEquals(second.toValue, getZero);
+  assertStrictEquals(second.weight, 0.6);
 });
 
 test("`isNumeric`", async (t) => {
@@ -402,7 +473,7 @@ test("`getItemRange`", async (t) => {
   );
 });
 
-test("`scorForItems`", async () => {
+test("`scorForItems`", () => {
   const items = ["", "123", "very long string :)"];
   const getLength = (item: string) => item.length;
   const getLengthSpy = sinon.spy(getLength);
