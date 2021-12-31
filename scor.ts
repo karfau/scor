@@ -144,6 +144,17 @@ export const getItemRange = <T>(
 };
 
 /**
+ * Creates a `Scor` with the range that is currently present in `items`
+ * (by using `getItemRange`).
+ * @param toValue will be passed to `getItemRange` and `scor`
+ * @param items the data to analyse to determine the range
+ */
+export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
+  const [min, max] = getItemRange(toValue, items);
+  return scor({ min, max, toValue });
+};
+
+/**
  * Creates a `Scor` with an updated `min`.
  * @throws If `min` is not numeric.
  * @see isNumeric

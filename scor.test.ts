@@ -14,6 +14,7 @@ import {
   MISSING_TO_VALUE,
   Scor,
   scor,
+  scorForItems,
   setMax,
   setMin,
   setRange,
@@ -72,7 +73,9 @@ test("scor stores all explicit options", async (t) => {
     options.toValue = getZero;
     assertStrictEquals(score.toValue, toValue);
   });
-  assertReadonlyProperties(score, toValue, MIN, MAX);
+  await t.step("modifying the the Scor throws", () => {
+    assertReadonlyProperties(score, toValue, MIN, MAX);
+  });
 });
 
 test("not setting `min` or `max` option", async (t) => {
@@ -397,4 +400,17 @@ test("`getItemRange`", async (t) => {
       assertEquals(range, [50, 100]);
     },
   );
+});
+
+test("`scorForItems`", async () => {
+  const items = ["", "123", "very long string :)"];
+  const getLength = (item: string) => item.length;
+  const getLengthSpy = sinon.spy(getLength);
+
+  const score = scorForItems(getLengthSpy, items);
+
+  assertEquals(getLengthSpy.callCount, items.length);
+  assertStrictEquals(score.min, getLength(items[0]));
+  assertStrictEquals(score.max, getLength(items[items.length - 1]));
+  assertStrictEquals(score.toValue, getLengthSpy);
 });
