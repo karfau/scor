@@ -526,7 +526,7 @@ test("`distributeWeights`", async (t) => {
   const scoreQuarter = scor({ weight: 0.25 });
   const scoreHalf = scor({ weight: 0.5 });
   const scoreFull = scor({ weight: 1.0 });
-  await t.step("accepts a list of `Scor`s", async (t) => {
+  await t.step("accepts and returns an `Array<Scor<T>>`", async (t) => {
     await t.step(
       "returns the same list and instances if all weights are numeric",
       () => {
@@ -581,6 +581,78 @@ test("`distributeWeights`", async (t) => {
         const scores = [scoreZero, scoreQuarter, scor(), scor()];
 
         const [first, _, third, fourth] = distributeWeights(scores);
+
+        assertEquals(first, scoreZero);
+        assertEquals(third.weight, 0.375);
+        assertEquals(fourth.weight, 0.375);
+      },
+    );
+  });
+  await t.step("accepts and returns a `Record<K, Scor<T>>`", async (t) => {
+    await t.step(
+      "returns the same list and instances if all weights are numeric",
+      () => {
+        const scores = { quarter: scoreQuarter, half: scoreHalf };
+
+        const actual = distributeWeights(scores);
+
+        assertStrictEquals(actual, scores);
+        assertStrictEquals(actual.quarter, scores.quarter);
+        assertStrictEquals(actual.half, scores.half);
+      },
+    );
+    await t.step(
+      "returns the same weighted instances if all numeric weights sum up to >= 1",
+      () => {
+        const scores = { scoreFull, scoreHalf, unspecified: scor() };
+
+        const actual = distributeWeights(scores);
+
+        assertStrictEquals(actual.scoreFull, scores.scoreFull);
+        assertStrictEquals(actual.scoreHalf, scores.scoreHalf);
+        assertStrictEquals(actual.unspecified.weight, 0);
+      },
+    );
+    await t.step(
+      "returns new instance with remaining weight on unweighted",
+      () => {
+        const scores = { unspecified: scor(), scoreHalf };
+
+        const actual = distributeWeights(scores);
+
+        assert(actual.unspecified !== scores.unspecified);
+        assertEquals(actual.unspecified.weight, scoreHalf.weight);
+        assertStrictEquals(actual.scoreHalf, scores.scoreHalf);
+      },
+    );
+    await t.step(
+      "returns new instances with remaining weight evenly distributed on unweighted",
+      () => {
+        const scores = {
+          first: scor(),
+          scoreQuarter,
+          third: scor(),
+          fourth: scor(),
+        };
+
+        const { first, third, fourth } = distributeWeights(scores);
+
+        assertEquals(first.weight, scoreQuarter.weight);
+        assertEquals(third.weight, scoreQuarter.weight);
+        assertEquals(fourth.weight, scoreQuarter.weight);
+      },
+    );
+    await t.step(
+      "returns same instance when weight is 0",
+      () => {
+        const scores = {
+          first: scoreZero,
+          scoreQuarter,
+          third: scor(),
+          fourth: scor(),
+        };
+
+        const { first, third, fourth } = distributeWeights(scores);
 
         assertEquals(first, scoreZero);
         assertEquals(third.weight, 0.375);

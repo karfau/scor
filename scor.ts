@@ -240,23 +240,54 @@ export const toNumericSum = (sum: number, value: number | null | undefined) => {
 };
 
 /**
- * Map a list of scores to one where all `weight` values are set to a numeric value:
+ * Maps a list or scores, so that all `weight` values are set to a numeric value:
  * - so that all previously unweighted scores share the same weight
  * - if the sum of all weights doesn't add up to 1,
  *   it is distributed to all unweighted scores
  *
  * @see setWeight
  */
-export const distributeWeights = <T = unknown>(
+export function distributeWeights<T = unknown>(
   scores: Scor<T>[],
-) => {
-  const weights = scores.map((s) => s.weight);
+): Scor<T>[];
+/**
+ * Maps a dict or scores, so that all `weight` values are set to a numeric value:
+ * - so that all previously unweighted scores share the same weight
+ * - if the sum of all weights doesn't add up to 1,
+ *   it is distributed to all unweighted scores
+ *
+ * @see setWeight
+ */
+export function distributeWeights<T = unknown, K extends string = string>(
+  scores: Record<K, Scor<T>>,
+): Record<K, Scor<T>>;
+/**
+ * Maps multiple scores (list or dict) so that all `weight` values are set to a numeric value:
+ * - so that all previously unweighted scores share the same weight
+ * - if the sum of all weights doesn't add up to 1,
+ *   it is distributed to all unweighted scores
+ *
+ * @returns {Scor[] | Record<K, Scor>} `Scor[]` or `Record<K, Scor>` depending on the type of `scores`
+ *
+ * @see setWeight
+ */
+export function distributeWeights<T = unknown, K extends string = string>(
+  scores: Scor<T>[] | Record<K, Scor<T>>,
+) {
+  const weights = Object.values(scores).map((s) => s.weight);
   const withoutWeight = weights.length - weights.filter(isNumeric).length;
   if (!withoutWeight) return scores;
   const remaining = 1 - weights.reduce(toNumericSum, 0);
-  return scores.map((s) =>
+  const toNumericWeight = (s: Scor<T>) =>
     isNumeric(s.weight)
       ? s
-      : setWeight(s, remaining > 0 ? remaining / withoutWeight : 0)
-  );
-};
+      : setWeight(s, remaining > 0 ? remaining / withoutWeight : 0);
+  return Array.isArray(scores)
+    ? scores.map(toNumericWeight)
+    : Object.fromEntries(
+      (Object.entries(scores) as [K, Scor<T>][]).map(([key, s]) => [
+        key,
+        toNumericWeight(s),
+      ]),
+    );
+}
