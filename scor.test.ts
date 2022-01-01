@@ -7,6 +7,7 @@ import {
 import sinon from "https://cdn.skypack.dev/sinon@v12.0.1?dts";
 import {
   AllOptions,
+  distributeWeights,
   getItemRange,
   getZero,
   INVALID_RANGE,
@@ -40,7 +41,8 @@ const assertReadonlyProperties = <Item>(
   // removing the comments would make the test fail
   // (some IDEs still mark the lines containing the assignment red)
   assertThrows(() => {
-    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only property.
+    // @ts-expect-error: TS2540 [ERROR]: Cannot assign to 'toValue' because it is a read-only
+    // property.
     return score.toValue = getZero;
   }, TypeError);
   assertStrictEquals(score.toValue, toValue);
@@ -98,7 +100,8 @@ test("scor stores all explicit options", async (t) => {
 test("not setting `min` or `max` option", async (t) => {
   await t.step("when both are not set `forValue` throws", () => {
     const score = scor({}); // not providing a range upfront is valid
-    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
+    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow
+    // `forValue`
   });
   await t.step("stores `toValue`", () => {
     const toValue = (item: unknown[]) => item.length;
@@ -108,11 +111,13 @@ test("not setting `min` or `max` option", async (t) => {
   });
   await t.step("when both are not set `forValue` throws", () => {
     const score = scor({ min: 7 }); // only providing `min` is valid
-    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
+    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow
+    // `forValue`
   });
   await t.step("when both are not set `forValue` throws", () => {
     const score = scor({ max: 7 }); // only providing `max` is valid
-    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow `forValue`
+    assertThrows(() => score.forValue(0), RangeError, INVALID_RANGE); // but it doesn't allow
+    // `forValue`
   });
 });
 
@@ -123,7 +128,8 @@ test("not setting `toValue`", async (t) => {
   });
   await t.step("with a range `forItem` throws", () => {
     const score = scor({ min: 0, max: 1 }); // not providing `toValue` upfront is valid
-    assertThrows(() => score.forItem(0), TypeError, MISSING_TO_VALUE); // but it doesn't allow `forItem`
+    assertThrows(() => score.forItem(0), TypeError, MISSING_TO_VALUE); // but it doesn't allow
+    // `forItem`
   });
 });
 
@@ -511,6 +517,75 @@ test("`toNumericSum`", async (t) => {
     assertStrictEquals(
       [1, 2, 3, 4, 5, 6, 7, 8, 9].reduce(toNumericSum, 0),
       45,
+    );
+  });
+});
+
+test("`distributeWeights`", async (t) => {
+  const scoreZero = scor({ weight: 0 });
+  const scoreQuarter = scor({ weight: 0.25 });
+  const scoreHalf = scor({ weight: 0.5 });
+  const scoreFull = scor({ weight: 1.0 });
+  await t.step("accepts a list of `Scor`s", async (t) => {
+    await t.step(
+      "returns the same list and instances if all weights are numeric",
+      () => {
+        const scores = [scoreQuarter, scoreHalf];
+
+        const actual = distributeWeights(scores);
+
+        assertStrictEquals(actual, scores);
+        assertStrictEquals(actual[0], scores[0]);
+        assertStrictEquals(actual[1], scores[1]);
+      },
+    );
+    await t.step(
+      "returns the same weighted instances if all numeric weights sum up to >= 1",
+      () => {
+        const scores = [scoreFull, scoreHalf, scor()];
+
+        const actual = distributeWeights(scores);
+
+        assertStrictEquals(actual[0], scores[0]);
+        assertStrictEquals(actual[1], scores[1]);
+        assertStrictEquals(actual[2].weight, 0);
+      },
+    );
+    await t.step(
+      "returns new instance with remaining weight on unweighted",
+      () => {
+        const scores = [scor(), scoreHalf];
+
+        const [first, second] = distributeWeights(scores);
+
+        assert(first !== scores[0]);
+        assertEquals(first.weight, scoreHalf.weight);
+        assertStrictEquals(second, scores[1]);
+      },
+    );
+    await t.step(
+      "returns new instances with remaining weight evenly distributed on unweighted",
+      () => {
+        const scores = [scor(), scoreQuarter, scor(), scor()];
+
+        const [first, _, third, fourth] = distributeWeights(scores);
+
+        assertEquals(first.weight, scoreQuarter.weight);
+        assertEquals(third.weight, scoreQuarter.weight);
+        assertEquals(fourth.weight, scoreQuarter.weight);
+      },
+    );
+    await t.step(
+      "returns same instance when weight is 0",
+      () => {
+        const scores = [scoreZero, scoreQuarter, scor(), scor()];
+
+        const [first, _, third, fourth] = distributeWeights(scores);
+
+        assertEquals(first, scoreZero);
+        assertEquals(third.weight, 0.375);
+        assertEquals(fourth.weight, 0.375);
+      },
     );
   });
 });

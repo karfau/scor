@@ -229,7 +229,7 @@ export const setWeight = <T>(
  *
  * @see isNumeric
  */
-export const toNumericSum = (sum: number, value: number) => {
+export const toNumericSum = (sum: number, value: number | null | undefined) => {
   if (!isNumeric(sum)) {
     throw new RangeError(
       `${INVALID_RANGE}: expected sum to be numeric, but was ${sum}.`,
@@ -237,4 +237,26 @@ export const toNumericSum = (sum: number, value: number) => {
   }
   if (!isNumeric(value)) return sum;
   return sum + value;
+};
+
+/**
+ * Map a list of scores to one where all `weight` values are set to a numeric value:
+ * - so that all previously unweighted scores share the same weight
+ * - if the sum of all weights doesn't add up to 1,
+ *   it is distributed to all unweighted scores
+ *
+ * @see setWeight
+ */
+export const distributeWeights = <T = unknown>(
+  scores: Scor<T>[],
+) => {
+  const weights = scores.map((s) => s.weight);
+  const withoutWeight = weights.length - weights.filter(isNumeric).length;
+  if (!withoutWeight) return scores;
+  const remaining = 1 - weights.reduce(toNumericSum, 0);
+  return scores.map((s) =>
+    isNumeric(s.weight)
+      ? s
+      : setWeight(s, remaining > 0 ? remaining / withoutWeight : 0)
+  );
 };
