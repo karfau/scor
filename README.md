@@ -1,6 +1,9 @@
 # scor
 
-Calculate scores (`0...1`) for numeric values or items, ~~and get the total score (aka "[(weighted) arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean)") from multiple scores~~.
+Calculate scores (`0...1`) for numeric values or items, and get the "total
+score" (e.g "~~(weighted)~~ or
+[arithmetic mean](https://en.wikipedia.org/wiki/Arithmetic_mean)") from multiple
+scores.
 
 The above sentence represents the goal of this library. Things that are not
 provided yet are struck out.
@@ -19,7 +22,7 @@ For example, let's look at npm packages. Possible criteria are:
 - time since last published version
 - version (major < 1?) / dist-tags
 - weekly downloads
-- github stargazers/forks?
+- source code repo attributes (e.g. GitHub stars/forks)
 - quality?
 - ...?
 
@@ -29,7 +32,7 @@ or less relevant.
 
 I experienced that such a "rating system", or "weighted average score", is not
 so easy to get completely right from scratch alongside collecting the data. It
-also involves a lot of repetitive code that easily leaks it's abstractions into
+also involves a lot of repetitive code that easily leaks its abstractions into
 the rest of the code.
 
 `scor` simplifies this by making certain assumptions:
@@ -63,27 +66,32 @@ the rest of the code.
 ## Usage
 
 (This has not been published as a package yet, but you can of course fetch the
-code from github.)
+code from GitHub.)
 
 ```ts
 import { scorForItems } from "scor"; // I hope to publish on deno.land soon
 import { getPackagesData } from "./npm";
 
 const packages = await getPackagesData();
-const scors = {
+
+const scors /* Record<string, Scor> | Scor[] */ = {
   downloads: scorForItems(
     // toValue converts an item to a numeric value, in this case with a log10 scale
-    (p) => Math.log10(p.downloads), 
+    (p) => Math.log10(p.downloads),
     packages,
   ),
   maintainers: scorForItems((p) => p.maintainers.length, packages),
 };
+
 // one way to calculate indivudual scores for each item
 const scores = packages.map((p) => ({
   name: p.name,
   downloadScore: scors.downloads.forItem(p),
   maintainerScore: scors.maintainers.forItem(p),
 }));
+
+// or calculate the overall score per item
+const scorePerItem = packages.map(createToMean(scors));
 ```
 
 ## TODOs
@@ -91,7 +99,17 @@ const scores = packages.map((p) => ({
 Contributions are welcome!
 
 - WIP: finish goals from above
+  - implement `createToWeightedMean`
+  - restrict type to only required fields for `setX` & `distributeWeights`?
+  - make sure all methods that throw return a union with `never`
+- allow setting `weight` as last argument of `getItemRange`
 - proof that test are working in each pushed commit/branch
 - create first tag
 - publish to `deno.land/x/`
+- post about it and get feedback
+- Add support for (weighted) sum
+- Add support for more kind of averages
+  - https://en.wikipedia.org/wiki/Average#Summary_of_types
+  - https://en.wikipedia.org/wiki/Geometric_mean ?
+  - https://en.wikipedia.org/wiki/Harmonic_mean ?
 - publish to npm(?)

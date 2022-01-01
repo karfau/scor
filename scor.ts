@@ -60,7 +60,7 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    * If the range has no length (`min == max`) the value is always 0.
    *
    * @throws {RangeError} If the range is not set to a numeric value on both sides.
-   * @throws {TypeError} If the `toValue` is not configured.
+   * @throws {TypeError} If `toValue` is not configured.
    *
    * @see isNumeric
    */
@@ -267,7 +267,8 @@ export function distributeWeights<T = unknown, K extends string = string>(
  * - if the sum of all weights doesn't add up to 1,
  *   it is distributed to all unweighted scores
  *
- * @returns {Scor[] | Record<K, Scor>} `Scor[]` or `Record<K, Scor>` depending on the type of `scores`
+ * @returns {Scor[] | Record<K, Scor>} `Scor[]` or `Record<K, Scor>` depending on the type of
+ *   `scores`
  *
  * @see setWeight
  */
@@ -290,4 +291,63 @@ export function distributeWeights<T = unknown, K extends string = string>(
         toNumericWeight(s),
       ]),
     );
+}
+
+/**
+ * Creates a function that calculates the total arithmetic mean for an item,
+ * so it can be used as an argument for `Array.map`, `sortBy` ...
+ *
+ * @throws {TypeError} if `scores` has no elements
+ * @throws {TypeError} if any element in `scores` has no `toValue`,
+ * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ *
+ * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ */
+export function createToMean<T>(scores: Scor<T>[]): never | ToValue<T>;
+/**
+ * Creates a function that calculates the total arithmetic mean for an item,
+ * so it can be used as an argument for `Array.map`, `sortBy` ...
+ *
+ * @throws {TypeError} if `scores` has no elements
+ * @throws {TypeError} if any element in `scores` has no `toValue`,
+ * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ *
+ * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ */
+export function createToMean<T>(
+  scores: Record<string, Scor<T>>,
+): never | ToValue<T>;
+/**
+ * Creates a function that calculates the total arithmetic mean for an item,
+ * so it can be used as an argument for `Array.map`, `sortBy` ...
+ *
+ * The input can either be an `Array<Scor>` or a `Record<string, Scor>.
+ *
+ * @throws {TypeError} if `scores` has no elements
+ * @throws {TypeError} if any element in `scores` has no `toValue`,
+ * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ *
+ * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ */
+export function createToMean<T>(
+  listOrRecord: Scor<T>[] | Record<string, Scor<T>>,
+): never | ToValue<T> {
+  const scores = Array.isArray(listOrRecord)
+    ? listOrRecord
+    : Object.values(listOrRecord);
+  if (scores.length === 0) {
+    throw new TypeError("Expected at least one element.");
+  }
+  if (
+    scores.findIndex((s) => s.toValue === undefined || !isNumeric(s.min)) > -1
+  ) {
+    throw new TypeError(
+      "Expected all scores to have `toValue`, numeric `min` and `max`.",
+    );
+  }
+  if (scores.length === 1) {
+    return scores[0].forItem;
+  }
+  return (item: T) =>
+    scores.reduce((sum, score) => sum + score.forItem(item), 0) / scores.length;
 }

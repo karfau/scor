@@ -7,6 +7,7 @@ import {
 import sinon from "https://cdn.skypack.dev/sinon@v12.0.1?dts";
 import {
   AllOptions,
+  createToMean,
   distributeWeights,
   getItemRange,
   getZero,
@@ -657,6 +658,97 @@ test("`distributeWeights`", async (t) => {
         assertEquals(first, scoreZero);
         assertEquals(third.weight, 0.375);
         assertEquals(fourth.weight, 0.375);
+      },
+    );
+  });
+});
+
+test("`createToMean`", async (t) => {
+  await t.step("accepts an `Array<Scor<T>>`", async (t) => {
+    await t.step("throws if the list is empty", () => {
+      assertThrows(() => createToMean([]), TypeError, "at least one");
+    });
+    await t.step("throws if at least one element has no `toValue`", () => {
+      assertThrows(() => createToMean([scor()]), TypeError, "toValue");
+    });
+    await t.step("throws if at least one element has no numeric `min`", () => {
+      assertThrows(() => createToMean([scor({ max: 5 })]), TypeError, "min");
+    });
+    await t.step("throws if at least one element has no numeric `max`", () => {
+      assertThrows(() => createToMean([scor({ min: 5 })]), TypeError, "max");
+    });
+    await t.step("returns forItem of the only `Scor`", () => {
+      const toValue = () => 1; // implementation not relevant here
+      const score = scor({ min: 0, max: 100, toValue });
+      assertStrictEquals(createToMean([score]), score.forItem);
+    });
+    await t.step(
+      "returns a method that takes an item and returns the arithmetic mean of all scores",
+      () => {
+        type Item = [name: string, value: number];
+
+        const min = 0;
+        const max = 10;
+        const scores = [
+          scor({ min, max, toValue: ([name]: Item) => name.length }),
+          scor({ min, max, toValue: ([_, value]: Item) => value }),
+        ];
+
+        const toMean = createToMean(scores);
+
+        assertStrictEquals(toMean(["", min]), 0);
+        assertStrictEquals(toMean(["12345", min]), 0.25);
+        assertStrictEquals(toMean(["", max]), 0.5);
+        assertStrictEquals(toMean(["123456789", 9]), 0.9);
+        assertStrictEquals(toMean(["1234567890", max]), 1);
+      },
+    );
+  });
+  await t.step("accepts a `Record<string, Scor<T>>`", async (t) => {
+    await t.step("throws if there are no keys", () => {
+      assertThrows(() => createToMean({}), TypeError, "at least one");
+    });
+    await t.step("throws if at least one element has no `toValue`", () => {
+      assertThrows(() => createToMean({ s: scor() }), TypeError, "toValue");
+    });
+    await t.step("throws if at least one element has no numeric `min`", () => {
+      assertThrows(
+        () => createToMean({ s: scor({ max: 5 }) }),
+        TypeError,
+        "min",
+      );
+    });
+    await t.step("throws if at least one element has no numeric `max`", () => {
+      assertThrows(
+        () => createToMean({ s: scor({ min: 5 }) }),
+        TypeError,
+        "max",
+      );
+    });
+    await t.step("returns forItem of the only `Scor`", () => {
+      const toValue = () => 1; // implementation not relevant here
+      const score = scor({ min: 0, max: 100, toValue });
+      assertStrictEquals(createToMean({ score }), score.forItem);
+    });
+    await t.step(
+      "returns a method that takes an item and returns the arithmetic mean of all scores",
+      () => {
+        type Item = [name: string, value: number];
+
+        const min = 0;
+        const max = 10;
+        const scores = {
+          name: scor({ min, max, toValue: ([name]: Item) => name.length }),
+          value: scor({ min, max, toValue: ([_, value]: Item) => value }),
+        };
+
+        const toMean = createToMean(scores);
+
+        assertStrictEquals(toMean(["", min]), 0);
+        assertStrictEquals(toMean(["12345", min]), 0.25);
+        assertStrictEquals(toMean(["", max]), 0.5);
+        assertStrictEquals(toMean(["123456789", 9]), 0.9);
+        assertStrictEquals(toMean(["1234567890", max]), 1);
       },
     );
   });
