@@ -218,3 +218,23 @@ export const setWeight = <T>(
   { min, max, toValue }: Scor<T>,
   weight: number | undefined,
 ) => scor({ min, max, toValue, weight });
+
+/**
+ * A reducer to sum all numeric values of a list.
+ *
+ * @param sum The value calculated so far
+ * @param value The value to add
+ *
+ * @throws {RangeError} if `sum` is not numeric
+ *
+ * @see isNumeric
+ */
+export const toNumericSum = (sum: number, value: number) => {
+  if (!isNumeric(sum)) {
+    throw new RangeError(
+      `${INVALID_RANGE}: expected sum to be numeric, but was ${sum}.`,
+    );
+  }
+  if (!isNumeric(value)) return sum;
+  return sum + value;
+};

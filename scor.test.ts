@@ -20,6 +20,7 @@ import {
   setRange,
   setToValue,
   setWeight,
+  toNumericSum,
   ToValue,
 } from "./scor.ts";
 import { assertEquals } from "https://deno.land/std@0.114.0/testing/asserts.ts";
@@ -484,4 +485,32 @@ test("`scorForItems`", () => {
   assertStrictEquals(score.min, getLength(items[0]));
   assertStrictEquals(score.max, getLength(items[items.length - 1]));
   assertStrictEquals(score.toValue, getLengthSpy);
+});
+
+test("`toNumericSum`", async (t) => {
+  for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+    const nn: number = notNumeric as number;
+    await t.step(`throws if the first argument is not numeric (${nn})`, () => {
+      assertThrows(() => toNumericSum(nn, 0), RangeError, INVALID_RANGE);
+    });
+    await t.step(`returns the first argument when the second is ${nn}`, () => {
+      assertStrictEquals(toNumericSum(0, nn), 0);
+    });
+  }
+  await t.step(
+    "returns the sum of first and second argument if both values are numeric",
+    () => {
+      assertStrictEquals(toNumericSum(0, 1), 1);
+      assertStrictEquals(toNumericSum(2, 3), 5);
+      assertStrictEquals(toNumericSum(5, -1), 4);
+      assertStrictEquals(toNumericSum(-10, -20), -30);
+      assertStrictEquals(toNumericSum(0, -1), -1);
+    },
+  );
+  await t.step("can be used as a reducer", () => {
+    assertStrictEquals(
+      [1, 2, 3, 4, 5, 6, 7, 8, 9].reduce(toNumericSum, 0),
+      45,
+    );
+  });
 });
