@@ -1,5 +1,6 @@
 import {
   assert,
+  assertEquals,
   assertObjectMatch,
   assertStrictEquals,
   assertThrows,
@@ -25,7 +26,6 @@ import {
   toNumericSum,
   ToValue,
 } from "./scor.ts";
-import { assertEquals } from "https://deno.land/std@0.114.0/testing/asserts.ts";
 import test = Deno.test;
 
 const NOT_NUMERIC_NULL = [NaN, null, -Infinity, Infinity];
