@@ -45,7 +45,7 @@ export const forValueNotAllowed = (): never => {
 export const getZero = () => 0;
 
 /**
- * A typeguard that only returns `true` for `number`s excluding `NaN`, `-Infinity` or `Infinity`.
+ * A typeguard that only returns `true` for `number`s excluding `NaN`, `-Infinity` and `Infinity`.
  */
 export const isNumeric = (x: number | null | undefined): x is number =>
   typeof x === "number" && -Infinity < x && x < Infinity;
@@ -56,7 +56,8 @@ export const isNumeric = (x: number | null | undefined): x is number =>
  */
 export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
   /**
-   * Returns the score for `item`.
+   * Returns the numeric score for `item`,
+   * which is always between >= 0 and &lt;= 1 .
    * If the range has no length (`min == max`) the value is always 0.
    *
    * @throws {RangeError} If the range is not set to a numeric value on both sides.
@@ -66,7 +67,8 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
    */
   forItem(item: T): never | number;
   /**
-   * Returns the score for `value`.
+   * Returns the numeric score for `value`,
+   * which is always between >= 0 and &lt;= 1 .
    * If the range has no length (`min == max`) the value is always 0.
    *
    * @throws {RangeError} If the range is not limited on both sides.
@@ -349,5 +351,8 @@ export function createToMean<T>(
     return scores[0].forItem;
   }
   return (item: T) =>
-    scores.reduce((sum, score) => sum + score.forItem(item), 0) / scores.length;
+    scores.reduce(
+      (sum: number, score: Scor<T>) => sum + score.forItem(item),
+      0,
+    ) / scores.length;
 }
