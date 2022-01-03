@@ -341,7 +341,7 @@ export function createToMean<T>(
     throw new TypeError("Expected at least one element.");
   }
   if (
-    scores.findIndex((s) => s.toValue === undefined || !isNumeric(s.min)) > -1
+    scores.findIndex((s) => s.toValue === undefined || !isNumeric(s.min) || !isNumeric(s.max)) > -1
   ) {
     throw new TypeError(
       "Expected all scores to have `toValue`, numeric `min` and `max`.",

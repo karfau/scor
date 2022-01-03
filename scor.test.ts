@@ -713,14 +713,14 @@ test("`createToMean`", async (t) => {
     });
     await t.step("throws if at least one element has no numeric `min`", () => {
       assertThrows(
-        () => createToMean({ s: scor({ max: 5 }) }),
+        () => createToMean({ s: scor({ max: 5, toValue: getZero }) }),
         TypeError,
         "min",
       );
     });
     await t.step("throws if at least one element has no numeric `max`", () => {
       assertThrows(
-        () => createToMean({ s: scor({ min: 5 }) }),
+        () => createToMean({ s: scor({ min: 5, toValue: getZero }) }),
         TypeError,
         "max",
       );
