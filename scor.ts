@@ -17,14 +17,6 @@ export interface AllOptions<T> {
    * Method to resolve a numeric value from an item.
    */
   toValue: ToValue<T>;
-  /**
-   * The weight of the score when it is used to create a total score
-   * from multiple scores.
-   * Scores that do not configure it equally share the same remaining weight.
-   * Values are percentages in the range from 0 (0%) to 1 (100%),
-   * negative values will throw an error.
-   */
-  weight?: number;
 }
 
 /**
@@ -85,7 +77,7 @@ export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
  * @see isNumeric
  */
 export const scor = <T>(
-  { min, max, toValue, weight }: OptionsArg<T> = {},
+  { min, max, toValue }: OptionsArg<T> = {},
 ): never | Scor<T> => {
   if (min !== undefined && !isNumeric(min)) {
     throw new RangeError(`${INVALID_RANGE}: Expected min to be numeric`);
@@ -93,12 +85,7 @@ export const scor = <T>(
   if (max !== undefined && !isNumeric(max)) {
     throw new RangeError(`${INVALID_RANGE}: Expected max to be numeric`);
   }
-  if (weight !== undefined && (!isNumeric(weight) || weight < 0)) {
-    throw new RangeError(
-      `${INVALID_RANGE}: Expected weight to be numeric and >= 0`,
-    );
-  }
-  const common = { min, max, toValue, weight };
+  const common = { min, max, toValue };
   if (min === undefined || max === undefined) {
     return Object.freeze({
       ...common,
@@ -178,16 +165,16 @@ export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
  * @throws {RangeError} If `min` is not numeric.
  * @see isNumeric
  */
-export const setMin = <T>({ max, toValue, weight }: Scor<T>, min: number) =>
-  scor({ min, max, toValue, weight });
+export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
+  scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated `max`.
  * @throws {RangeError} If `max` is not numeric.
  * @see isNumeric
  */
-export const setMax = <T>({ min, toValue, weight }: Scor<T>, max: number) =>
-  scor({ min, max, toValue, weight });
+export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
+  scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated range.
@@ -195,31 +182,18 @@ export const setMax = <T>({ min, toValue, weight }: Scor<T>, max: number) =>
  * @see isNumeric
  */
 export const setRange = <T>(
-  { toValue, weight }: Scor<T>,
+  { toValue }: Scor<T>,
   min: number,
   max: number,
-) => scor({ min, max, toValue, weight });
+) => scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated `toValue`.
  */
 export const setToValue = <T>(
-  { min, max, weight }: Scor<T>,
+  { min, max }: Scor<T>,
   toValue: ToValue<T>,
-) => scor({ min, max, toValue, weight });
-
-/**
- * Creates a `Scor` with an updated `weight`.
- * @throws {RangeError} If `weight` is not numeric or negative.
- *         `undefined` is allowed to restore equal distribution.
- *
- * @see isNumeric
- * @see AllOptions.weight
- */
-export const setWeight = <T>(
-  { min, max, toValue }: Scor<T>,
-  weight: number | undefined,
-) => scor({ min, max, toValue, weight });
+) => scor({ min, max, toValue });
 
 /**
  * A reducer to sum all numeric values of a list.
@@ -241,54 +215,61 @@ export const toNumericSum = (sum: number, value: number | null | undefined) => {
   return sum + value;
 };
 
+export type Weight = number;
+export type OptionalWeight = Weight | undefined;
+
 /**
- * Maps a list or scores, so that all `weight` values are set to a numeric value:
- * - so that all previously unweighted scores share the same weight
+ * Maps a list of weights, so that all are set to a numeric value:
+ * - so that all undefined weights share the same weight
  * - if the sum of all weights doesn't add up to 1,
- *   it is distributed to all unweighted scores
+ *   it is distributed to all undefined ones
  *
- * @see setWeight
+ * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
  */
-export function distributeWeights<T = unknown>(
-  scores: Scor<T>[],
-): Scor<T>[];
+export function distributeWeights(
+  scores: OptionalWeight[],
+): Weight[];
 /**
- * Maps a dict or scores, so that all `weight` values are set to a numeric value:
- * - so that all previously unweighted scores share the same weight
+ * Maps a dict of weights, so that all are set to a numeric value:
+ * - so that all undefined weights share the same weight
  * - if the sum of all weights doesn't add up to 1,
- *   it is distributed to all unweighted scores
+ *   it is distributed to all undefined ones
  *
- * @see setWeight
+ * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
  */
-export function distributeWeights<T = unknown, K extends string = string>(
-  scores: Record<K, Scor<T>>,
-): Record<K, Scor<T>>;
+export function distributeWeights<K extends string = string>(
+  weights: Record<K, OptionalWeight>,
+): Record<K, Weight>;
 /**
- * Maps multiple scores (list or dict) so that all `weight` values are set to a numeric value:
- * - so that all previously unweighted scores share the same weight
+ * Maps multiple weights (list or dict) so that all are set to a numeric value:
+ * - so that all undefined weights share the same weight
  * - if the sum of all weights doesn't add up to 1,
- *   it is distributed to all unweighted scores
+ *   it is distributed to all undefined ones
  *
- * @returns {Scor[] | Record<K, Scor>} `Scor[]` or `Record<K, Scor>` depending on the type of
- *   `scores`
+ * @returns {Weight[] | Record<K, Weight>} `Weight[]` or `Record<K, Weight>`
+ *          depending on the type of `weights`
  *
- * @see setWeight
+ * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
  */
-export function distributeWeights<T = unknown, K extends string = string>(
-  scores: Scor<T>[] | Record<K, Scor<T>>,
+export function distributeWeights<K extends string = string>(
+  weightListOrDict: OptionalWeight[] | Record<K, OptionalWeight>,
 ) {
-  const weights = Object.values(scores).map((s) => s.weight);
+  const weights = Object.values(weightListOrDict);
+  if (weights.some((w) => w !== undefined && (!isNumeric(w) || w < 0))) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
+    );
+  }
+
   const withoutWeight = weights.length - weights.filter(isNumeric).length;
-  if (!withoutWeight) return scores;
+  if (!withoutWeight) return weightListOrDict;
   const remaining = 1 - weights.reduce(toNumericSum, 0);
-  const toNumericWeight = (s: Scor<T>) =>
-    isNumeric(s.weight)
-      ? s
-      : setWeight(s, remaining > 0 ? remaining / withoutWeight : 0);
-  return Array.isArray(scores)
-    ? scores.map(toNumericWeight)
+  const toNumericWeight = (weight: OptionalWeight) =>
+    isNumeric(weight) ? weight : remaining > 0 ? remaining / withoutWeight : 0;
+  return Array.isArray(weightListOrDict)
+    ? weightListOrDict.map(toNumericWeight)
     : Object.fromEntries(
-      (Object.entries(scores) as [K, Scor<T>][]).map(([key, s]) => [
+      (Object.entries(weightListOrDict) as [K, number][]).map(([key, s]) => [
         key,
         toNumericWeight(s),
       ]),
@@ -341,7 +322,9 @@ export function createToMean<T>(
     throw new TypeError("Expected at least one element.");
   }
   if (
-    scores.findIndex((s) => s.toValue === undefined || !isNumeric(s.min) || !isNumeric(s.max)) > -1
+    scores.findIndex((s) =>
+      s.toValue === undefined || !isNumeric(s.min) || !isNumeric(s.max)
+    ) > -1
   ) {
     throw new TypeError(
       "Expected all scores to have `toValue`, numeric `min` and `max`.",
@@ -352,7 +335,7 @@ export function createToMean<T>(
   }
   return (item: T) =>
     scores.reduce(
-      (sum: number, score: Scor<T>) => sum + score.forItem(item),
+      (sum, score) => sum + score.forItem(item),
       0,
     ) / scores.length;
 }
