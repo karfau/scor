@@ -224,7 +224,9 @@ export type OptionalWeight = Weight | undefined;
  * - if the sum of all weights doesn't add up to 1,
  *   it is distributed to all undefined ones
  *
- * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If all weights are defined but the sum is 0.
+ * @throws {TypeError} If there is no weight (undefined is fine).
  */
 export function distributeWeights(
   scores: OptionalWeight[],
@@ -235,7 +237,9 @@ export function distributeWeights(
  * - if the sum of all weights doesn't add up to 1,
  *   it is distributed to all undefined ones
  *
- * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If all weights are defined but the sum is 0.
+ * @throws {TypeError} If there is no weight (undefined is fine).
  */
 export function distributeWeights<K extends string = string>(
   weights: Record<K, OptionalWeight>,
@@ -249,12 +253,17 @@ export function distributeWeights<K extends string = string>(
  * @returns {Weight[] | Record<K, Weight>} `Weight[]` or `Record<K, Weight>`
  *          depending on the type of `weights`
  *
- * @throws {RangeError} If `weight` defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If all weights are defined but the sum is 0.
+ * @throws {TypeError} If there is no weight (undefined is fine).
  */
 export function distributeWeights<K extends string = string>(
   weightListOrDict: OptionalWeight[] | Record<K, OptionalWeight>,
 ) {
   const weights = Object.values(weightListOrDict);
+  if (weights.length === 0) {
+    throw new TypeError("Expected at least one weight.");
+  }
   if (weights.some((w) => w !== undefined && (!isNumeric(w) || w < 0))) {
     throw new RangeError(
       `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
@@ -262,8 +271,16 @@ export function distributeWeights<K extends string = string>(
   }
 
   const withoutWeight = weights.length - weights.filter(isNumeric).length;
-  if (!withoutWeight) return weightListOrDict;
-  const remaining = 1 - weights.reduce(toNumericSum, 0);
+  const numericSum = weights.reduce(toNumericSum, 0);
+  if (withoutWeight === 0) {
+    if (numericSum === 0) {
+      throw new RangeError(
+        `${INVALID_RANGE}: expected sum to be > 0 when all weights are defined.`,
+      );
+    }
+    return weightListOrDict;
+  }
+  const remaining = 1 - numericSum;
   const toNumericWeight = (weight: OptionalWeight) =>
     isNumeric(weight) ? weight : remaining > 0 ? remaining / withoutWeight : 0;
   return Array.isArray(weightListOrDict)

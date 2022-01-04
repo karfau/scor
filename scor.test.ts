@@ -480,10 +480,10 @@ test("`toNumericSum`", async (t) => {
 });
 
 test("`distributeWeights`", async (t) => {
-  const scoreZero = 0;
-  const scoreQuarter = 0.25;
-  const scoreHalf = 0.5;
-  const scoreFull = 1.0;
+  const zero = 0;
+  const quarter = 0.25;
+  const half = 0.5;
+  const whole = 1.0;
   await t.step(
     "accepts `OptionalWeight[]` and returns an `Weight[]`",
     async (t) => {
@@ -504,10 +504,23 @@ test("`distributeWeights`", async (t) => {
           INVALID_RANGE,
         );
       });
+      await t.step("throws if the list is empty", () => {
+        assertThrows(() => distributeWeights([]), TypeError, "at least one");
+      });
+      await t.step(
+        `throws if sum of defined is 0 and there are no undefined`,
+        () => {
+          assertThrows(
+            () => distributeWeights([0]),
+            RangeError,
+            INVALID_RANGE,
+          );
+        },
+      );
       await t.step(
         "returns the same list if all weights are already numeric",
         () => {
-          const scores = [scoreQuarter, scoreHalf];
+          const scores = [quarter, half];
 
           const actual = distributeWeights(scores);
 
@@ -519,7 +532,7 @@ test("`distributeWeights`", async (t) => {
       await t.step(
         "returns the 0 for all undefined weights if all numeric weights sum up to >= 1",
         () => {
-          const scores = [scoreFull, scoreHalf, undefined];
+          const scores = [whole, half, undefined];
 
           const actual = distributeWeights(scores);
 
@@ -531,35 +544,35 @@ test("`distributeWeights`", async (t) => {
       await t.step(
         "returns remaining weight on undefined",
         () => {
-          const scores = [undefined, scoreHalf];
+          const scores = [undefined, half];
 
           const [first, second] = distributeWeights(scores);
 
           assert(first !== scores[0]);
-          assertEquals(first, scoreHalf);
+          assertEquals(first, half);
           assertStrictEquals(second, scores[1]);
         },
       );
       await t.step(
         "returns remaining weight evenly distributed on undefined",
         () => {
-          const scores = [undefined, scoreQuarter, undefined, undefined];
+          const scores = [undefined, quarter, undefined, undefined];
 
           const [first, _, third, fourth] = distributeWeights(scores);
 
-          assertEquals(first, scoreQuarter);
-          assertEquals(third, scoreQuarter);
-          assertEquals(fourth, scoreQuarter);
+          assertEquals(first, quarter);
+          assertEquals(third, quarter);
+          assertEquals(fourth, quarter);
         },
       );
       await t.step(
         "keeps weight with 0 and distributes the remaining on undefined",
         () => {
-          const scores = [scoreZero, scoreQuarter, undefined, undefined];
+          const scores = [zero, quarter, undefined, undefined];
 
           const [first, _, third, fourth] = distributeWeights(scores);
 
-          assertEquals(first, scoreZero);
+          assertEquals(first, zero);
           assertEquals(third, 0.375);
           assertEquals(fourth, 0.375);
         },
@@ -586,10 +599,23 @@ test("`distributeWeights`", async (t) => {
           INVALID_RANGE,
         );
       });
+      await t.step("throws if the list is empty", () => {
+        assertThrows(() => distributeWeights({}), TypeError, "at least one");
+      });
+      await t.step(
+        `throws if sum of defined is 0 and there are no undefined`,
+        () => {
+          assertThrows(
+            () => distributeWeights({ zero }),
+            RangeError,
+            INVALID_RANGE,
+          );
+        },
+      );
       await t.step(
         "returns the same dict if all weights are already numeric",
         () => {
-          const scores = { quarter: scoreQuarter, half: scoreHalf };
+          const scores = { quarter: quarter, half: half };
 
           const actual = distributeWeights(scores);
 
@@ -601,7 +627,11 @@ test("`distributeWeights`", async (t) => {
       await t.step(
         "returns the 0 for undefined weights if all numeric weights sum up to >= 1",
         () => {
-          const scores = { scoreFull, scoreHalf, unspecified: undefined };
+          const scores = {
+            scoreFull: whole,
+            scoreHalf: half,
+            unspecified: undefined,
+          };
 
           const actual = distributeWeights(scores);
 
@@ -613,12 +643,12 @@ test("`distributeWeights`", async (t) => {
       await t.step(
         "returns remaining weight on undefined",
         () => {
-          const scores = { unspecified: undefined, scoreHalf };
+          const scores = { unspecified: undefined, scoreHalf: half };
 
           const actual = distributeWeights(scores);
 
           assert(actual.unspecified !== scores.unspecified);
-          assertEquals(actual.unspecified, scoreHalf);
+          assertEquals(actual.unspecified, half);
           assertStrictEquals(actual.scoreHalf, scores.scoreHalf);
         },
       );
@@ -627,31 +657,31 @@ test("`distributeWeights`", async (t) => {
         () => {
           const scores = {
             first: undefined,
-            scoreQuarter,
+            scoreQuarter: quarter,
             third: undefined,
             fourth: undefined,
           };
 
           const { first, third, fourth } = distributeWeights(scores);
 
-          assertEquals(first, scoreQuarter);
-          assertEquals(third, scoreQuarter);
-          assertEquals(fourth, scoreQuarter);
+          assertEquals(first, quarter);
+          assertEquals(third, quarter);
+          assertEquals(fourth, quarter);
         },
       );
       await t.step(
         "keeps weight with 0 and distributes the remaining on undefined",
         () => {
           const scores = {
-            first: scoreZero,
-            scoreQuarter,
+            first: zero,
+            scoreQuarter: quarter,
             third: undefined,
             fourth: undefined,
           };
 
           const { first, third, fourth } = distributeWeights(scores);
 
-          assertEquals(first, scoreZero);
+          assertEquals(first, zero);
           assertEquals(third, 0.375);
           assertEquals(fourth, 0.375);
         },
@@ -698,6 +728,17 @@ test("`createToMean`", async (t) => {
         assertStrictEquals(toMean(["", max]), 0.5);
         assertStrictEquals(toMean(["123456789", 9]), 0.9);
         assertStrictEquals(toMean(["1234567890", max]), 1);
+      },
+    );
+
+    await t.step(
+      "optionally accepts a second argument of type `Weight[]`",
+      async (t) => {
+        // throws if weights are not same length
+        // throws if some weight is not numeric or is negative, ... extract from distributeWeights?
+        await t.step("for which it spreads the scores accordingly", () => {
+          // const weights = distributeWeights([])
+        });
       },
     );
   });
