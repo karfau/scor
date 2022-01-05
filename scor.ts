@@ -331,8 +331,9 @@ export function distributeWeights<K extends string = string>(
     0,
   ]);
   const remaining = 1 - numericSum;
+  const perUndefinedWeight = remaining > 0 ? remaining / undefinedWeights : 0;
   const toNumericWeight = (weight: OptionalWeight) =>
-    isNumeric(weight) ? weight : remaining > 0 ? remaining / withoutWeight : 0;
+    isNumeric(weight) ? weight : perUndefinedWeight;
   return Array.isArray(weightListOrDict)
     ? weightListOrDict.map(toNumericWeight)
     : Object.fromEntries(
