@@ -348,46 +348,88 @@ export function distributeWeights<K extends string = string>(
  * Creates a function that calculates the total arithmetic mean for an item,
  * so it can be used as an argument for `Array.map`, `sortBy` ...
  *
- * @throws {TypeError} if `scores` has no elements
- * @throws {TypeError} if any element in `scores` has no `toValue`,
- * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
- *
- * @see https://en.wikipedia.org/wiki/Arithmetic_mean
- */
-export function createToMean<T>(scores: Scor<T>[]): never | ToValue<T>;
-/**
- * Creates a function that calculates the total arithmetic mean for an item,
- * so it can be used as an argument for `Array.map`, `sortBy` ...
+ * When `weights` is provided, the created method returns the weighted arithmetic mean.
+ * All `weights` have to be fully defined, to spread remaining weights use `distributeWeights`.
  *
  * @throws {TypeError} if `scores` has no elements
  * @throws {TypeError} if any element in `scores` has no `toValue`,
  * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ * @throws {TypeError} if `weights` is provided but the length doesn't match `scores`
+ * @throws {RangeError} if `weights` is provided but not all values are numeric
+ * @throws {RangeError} if `weights` is provided but the sum of all weights is 0
  *
+ * @see distributeWeights
  * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ * @see https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
  */
 export function createToMean<T>(
-  scores: Record<string, Scor<T>>,
+  scores: Scor<T>[],
+  weights?: Weight[],
 ): never | ToValue<T>;
 /**
  * Creates a function that calculates the total arithmetic mean for an item,
  * so it can be used as an argument for `Array.map`, `sortBy` ...
  *
- * The input can either be an `Array<Scor>` or a `Record<string, Scor>.
+ * When `weights` is provided, the created method returns the weighted arithmetic mean.
+ * All `weights` have to be fully defined, to spread remaining weights use `distributeWeights`.
  *
  * @throws {TypeError} if `scores` has no elements
  * @throws {TypeError} if any element in `scores` has no `toValue`,
  * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ * @throws {TypeError} if `weights` is provided but the length doesn't match `scores`
+ * @throws {RangeError} if `weights` is provided but not all values are numeric
+ * @throws {RangeError} if `weights` is provided but the sum of all weights is 0
  *
+ * @see distributeWeights
  * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ * @see https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
  */
-export function createToMean<T>(
-  listOrRecord: Scor<T>[] | Record<string, Scor<T>>,
+export function createToMean<T, K extends string>(
+  scores: Record<K, Scor<T>>,
+  weights?: Record<K, Weight>,
+): never | ToValue<T>;
+/**
+ * Creates a function that calculates the total arithmetic mean for an item,
+ * so it can be used as an argument for `Array.map`, `sortBy` ...
+ *
+ * When `weights` is provided, the created method returns the weighted arithmetic mean.
+ * All `weights` have to be fully defined, to spread remaining weights use `distributeWeights`.
+ *
+ * The first argument can either be an `Array<Scor>` or a `Record<string, Scor>`.
+ * The second argument needs to align with the first one.
+ *
+ * @throws {TypeError} if `scores` has no elements
+ * @throws {TypeError} if any element in `scores` has no `toValue`,
+ * @throws {TypeError} if any element in `scores` has no numeric `min` or `max`
+ * @throws {TypeError} if `weights` is provided but the length doesn't match `scores`
+ * @throws {RangeError} if `weights` is provided but not all values are numeric
+ * @throws {RangeError} if `weights` is provided but the sum of all weights is 0
+ *
+ * @see distributeWeights
+ * @see https://en.wikipedia.org/wiki/Arithmetic_mean
+ * @see https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
+ */
+export function createToMean<T, K extends string>(
+  listOrRecord: Scor<T>[] | Record<K, Scor<T>>,
+  weights?: Weight[] | Record<K, Weight>,
 ): never | ToValue<T> {
-  const scores = Array.isArray(listOrRecord)
+  const scores: Scor<T>[] = Array.isArray(listOrRecord)
     ? listOrRecord
     : Object.values(listOrRecord);
+  const weightsList: Weight[] = weights
+    ? (Array.isArray(weights)
+      ? weights
+      : Object.keys(listOrRecord).map((key) => {
+        if (Object.prototype.hasOwnProperty.call(weights, key) === false) {
+          throw new TypeError(
+            `Expected same keys scores and weights, but missing key '${key}'.`,
+          );
+        }
+        return weights[key as unknown as K];
+      }))
+    : [];
   if (scores.length === 0) {
-    throw new TypeError("Expected at least one element.");
+    throw new TypeError("Expected at least one element in scores.");
   }
   if (
     scores.findIndex((s) =>
@@ -398,12 +440,28 @@ export function createToMean<T>(
       "Expected all scores to have `toValue`, numeric `min` and `max`.",
     );
   }
+
+  if (weights) {
+    if (weightsList.length !== scores.length) {
+      throw new TypeError("Expected scores and weights to have same length.");
+    }
+
+    if (!assertWeights(weightsList)) {
+      throw new RangeError(`Expected all weights to be numeric.`);
+    }
+  }
   if (scores.length === 1) {
     return scores[0].forItem;
   }
+  const divisor = weights ? weightsList.reduce(toNumericSum, 0) : scores.length;
+  const weighted: (value: number, index: number) => number = weights
+    ? (value, index) => {
+      return value * weightsList[index];
+    }
+    : (value) => value;
   return (item: T) =>
     scores.reduce(
-      (sum, score) => sum + score.forItem(item),
+      (sum, score, i) => sum + weighted(score.forItem(item), i),
       0,
-    ) / scores.length;
+    ) / divisor;
 }

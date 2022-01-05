@@ -1,12 +1,9 @@
 # scor
 
-Calculate scores (`0...1`) for numeric values or items, and get the "total
-score" (e.g "~~(weighted)~~ or
-[arithmetic mean](https://en.wikipedia.org/wiki/Arithmetic_mean)") from multiple
-scores.
-
-The above sentence represents the goal of this library. Things that are not
-provided yet are struck out.
+Calculate scores for numeric values or items, and get the "total score" (aka
+[arithmetic mean](https://en.wikipedia.org/wiki/Arithmetic_mean) or
+[weighted arithmetic mean](https://en.wikipedia.org/wiki/Weighted_arithmetic_mean))
+from multiple scores.
 
 ## Concept and vision
 
@@ -60,8 +57,8 @@ the rest of the code.
   - a required value is not numeric (beside cases mentioned above)
 - A `Scor` is immutable, "mutations" create a new instance.
 - A `Scor` never keeps references to the items it is scoring.
-- To be implemented: Multiple `Scor`s can easily be combined into a single
-  overall weighted score per item, e.g. to use it for sorting
+- Multiple `Scor`s can easily be combined into a single overall weighted score
+  per item, e.g. to use it for sorting
 
 ## Usage
 
@@ -69,12 +66,12 @@ the rest of the code.
 code from GitHub.)
 
 ```ts
-import { scorForItems } from "scor"; // I hope to publish on deno.land soon
-import { getPackagesData } from "./npm";
+import { createToMean, distributeWeights, scorForItems } from "scor"; // I plan to publish to deno.land soon
+import { getPackagesData } from "./npm.ts";
 
 const packages = await getPackagesData();
 
-const scors /* Record<string, Scor> | Scor[] */ = {
+const scors = {
   downloads: scorForItems(
     // toValue converts an item to a numeric value, in this case with a log10 scale
     (p) => Math.log10(p.downloads),
@@ -90,8 +87,35 @@ const scores = packages.map((p) => ({
   maintainerScore: scors.maintainers.forItem(p),
 }));
 
-// or calculate the overall score per item
+// or calculate the arithmetic mean per item
 const scorePerItem = packages.map(createToMean(scors));
+
+// or the weighted arithmetic mean
+const weightedScorePerItem = packages.map(createToMean(
+  scors,
+  { downloads: 0.75, maintainers: 0.25 },
+));
+
+// or as a list wihtout keys
+const scorsList = [
+  scorForItems(
+    (p) => Math.log10(p.downloads),
+    packages,
+  ),
+  scorForItems((p) => p.maintainers.length, packages),
+];
+
+const weightedScorePerItemL = packages.map(
+  createToMean(scorsList, [0.75, 0.25]),
+);
+
+// if you have many weights and some should be distributed:
+distributeWeights(
+  [0.5, undefined, undefined],
+); // => [0.5, 0.25, 0.25]
+distributeWeights(
+  { first: 0.7, second: undefined, third: undefined },
+); // => {first: 0.7, second: 0.15, third: 0.15}
 ```
 
 ## TODOs
@@ -99,16 +123,14 @@ const scorePerItem = packages.map(createToMean(scors));
 Contributions are welcome!
 
 - WIP: finish goals from above
-  - implement `createToWeightedMean`
-  - restrict type to only required fields for `setX` & `distributeWeights`?
+  - restrict type to only required fields for `setX`?
   - make sure all methods that throw return a union with `never`
-- allow setting `weight` as last argument of `getItemRange`
 - proof that test are working in each pushed commit/branch
 - create first tag
 - publish to `deno.land/x/`
 - post about it and get feedback
-- Add support for (weighted) sum
-- Add support for more kind of averages
+- Add support for weighted sum?
+- Add support for more kind of averages?
   - https://en.wikipedia.org/wiki/Average#Summary_of_types
   - https://en.wikipedia.org/wiki/Geometric_mean ?
   - https://en.wikipedia.org/wiki/Harmonic_mean ?

@@ -757,7 +757,7 @@ test("`createToMean`", async (t) => {
     });
     await t.step(
       "returns a method that takes an item and returns the arithmetic mean of all scores",
-      () => {
+      async (t) => {
         type Item = [name: string, value: number];
 
         const min = 0;
@@ -774,17 +774,84 @@ test("`createToMean`", async (t) => {
         assertStrictEquals(toMean(["", max]), 0.5);
         assertStrictEquals(toMean(["123456789", 9]), 0.9);
         assertStrictEquals(toMean(["1234567890", max]), 1);
-      },
-    );
+        await t.step(
+          "optionally accepts a second argument of type `Weight[]`",
+          async (t) => {
+            await t.step(
+              "throws if `weights` do not have the same length",
+              () => {
+                assertThrows(
+                  () => createToMean(scores, [0.1]),
+                  TypeError,
+                  "length",
+                );
+                assertThrows(
+                  () => createToMean([scores[0]], []),
+                  TypeError,
+                  "length",
+                );
+              },
+            );
+            await t.step("throws if `weights` sum up to 0", () => {
+              assertThrows(
+                () => createToMean(scores, [0, 0]),
+                RangeError,
+                "sum",
+              );
+            });
+            for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+              const weight: number = notNumeric as number;
+              await t.step(
+                `throws if 'weights' contains non numeric (${weight})`,
+                () => {
+                  assertThrows(
+                    () => createToMean(scores, [0, weight]),
+                    RangeError,
+                    "numeric",
+                  );
+                },
+              );
+            }
+            await t.step(
+              "for which it spreads the scores accordingly between 0 and 1",
+              () => {
+                const toMean = createToMean(scores, [0, 1]);
 
-    await t.step(
-      "optionally accepts a second argument of type `Weight[]`",
-      async (t) => {
-        // throws if weights are not same length
-        // throws if some weight is not numeric or is negative, ... extract from distributeWeights?
-        await t.step("for which it spreads the scores accordingly", () => {
-          // const weights = distributeWeights([])
-        });
+                // the first score is not considered because of weight 0
+                assertStrictEquals(toMean(["12345", max]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 1 and 0",
+              () => {
+                const toMean = createToMean(scores, [1, 0]);
+                // the second score is not considered because of weight 0
+                assertStrictEquals(toMean(["1234567890", 5]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 1 and 0.5",
+              () => {
+                const toMean = createToMean(scores, [1, 0.5]);
+                // the total weight is 1.5
+                // and the sum of all weighted scores is 1.5,
+                // so the weighted mean is 1
+                assertStrictEquals(toMean(["1234567890", max]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 0.25 and 0.25",
+              () => {
+                const toMean = createToMean(scores, [0.25, 0.25]);
+                // the total weight is 0.5
+                // and the sum of all unweighted scores is 0.8,
+                // and the sum of all weighted scores is 0.2,
+                // so the weighted mean is 0.2 / 0.5 = 0.4
+                assertStrictEquals(toMean(["1234", 4]), 0.4);
+              },
+            );
+          },
+        );
       },
     );
   });
@@ -816,7 +883,7 @@ test("`createToMean`", async (t) => {
     });
     await t.step(
       "returns a method that takes an item and returns the arithmetic mean of all scores",
-      () => {
+      async (t) => {
         type Item = [name: string, value: number];
 
         const min = 0;
@@ -833,6 +900,101 @@ test("`createToMean`", async (t) => {
         assertStrictEquals(toMean(["", max]), 0.5);
         assertStrictEquals(toMean(["123456789", 9]), 0.9);
         assertStrictEquals(toMean(["1234567890", max]), 1);
+
+        await t.step(
+          "optionally accepts a second argument of type `Record<K, Weight>`",
+          async (t) => {
+            await t.step(
+              "throws if `weights` does not have the same keys as scores",
+              () => {
+                assertThrows(
+                  // @ts-expect-error: No overload matches this call.
+                  () => createToMean(scores, { name: 0.1 }),
+                  TypeError,
+                  "same keys",
+                );
+                assertThrows(
+                  // @ts-expect-error: No overload matches this call.
+                  () => createToMean({ name: scores.name }, {}),
+                  TypeError,
+                  "same keys",
+                );
+              },
+            );
+            await t.step("throws if `weights` sum up to 0", () => {
+              assertThrows(
+                () => createToMean(scores, { name: 0, value: 0 }),
+                RangeError,
+                "sum",
+              );
+            });
+            for (const notNumeric of NOT_NUMERIC_NULL_UNDEF) {
+              const weight: number = notNumeric as number;
+              await t.step(
+                `throws if 'weights' contains non numeric (${weight})`,
+                () => {
+                  assertThrows(
+                    () => createToMean(scores, { name: 0, value: weight }),
+                    RangeError,
+                    "numeric",
+                  );
+                },
+              );
+            }
+            await t.step(
+              "for which it spreads the scores accordingly between 0 and 1",
+              () => {
+                const toMean = createToMean(scores, { name: 0, value: 1 });
+
+                // the first score is not considered because of weight 0
+                assertStrictEquals(toMean(["12345", max]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores when keys in weights have a different order",
+              () => {
+                const toMean = createToMean(scores, { value: 1, name: 0 });
+
+                // same test as above,
+                // only the order of keys in `weights` is different!
+                // the first score is not considered because of weight 0
+                assertStrictEquals(toMean(["12345", max]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 1 and 0",
+              () => {
+                const toMean = createToMean(scores, { name: 1, value: 0 });
+                // the second score is not considered because of weight 0
+                assertStrictEquals(toMean(["1234567890", 5]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 1 and 0.5",
+              () => {
+                const toMean = createToMean(scores, { name: 1, value: 0.5 });
+                // the total weight is 1.5
+                // and the sum of all weighted scores is 1.5,
+                // so the weighted mean is 1
+                assertStrictEquals(toMean(["1234567890", max]), 1);
+              },
+            );
+            await t.step(
+              "for which it spreads the scores accordingly between 0.25 and 0.25",
+              () => {
+                const toMean = createToMean(scores, {
+                  name: 0.25,
+                  value: 0.25,
+                });
+                // the total weight is 0.5
+                // and the sum of all unweighted scores is 0.8,
+                // and the sum of all weighted scores is 0.2,
+                // so the weighted mean is 0.2 / 0.5 = 0.4
+                assertStrictEquals(toMean(["1234", 4]), 0.4);
+              },
+            );
+          },
+        );
       },
     );
   });
