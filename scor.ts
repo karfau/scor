@@ -219,6 +219,42 @@ export type Weight = number;
 export type OptionalWeight = Weight | undefined;
 
 /**
+ * A type guard that checks if all weights are defined
+ * and if all values are in the expected range.
+ * Throws an error for values in unexpected ranges.
+ * Returns `false` if there are `undefined` weights, which need distribution.
+ *
+ * @throws {TypeError} If weights has a length of 0.
+ * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
+ * @throws {RangeError} If all weights are defined but the sum is 0.
+ *
+ * @see distributeWeights
+ */
+export function assertWeights(
+  weights: OptionalWeight[],
+): weights is Weight[] {
+  if (weights.length === 0) {
+    throw new TypeError("Expected at least one weight.");
+  }
+  if (weights.some((w) => w !== undefined && (!isNumeric(w) || w < 0))) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
+    );
+  }
+  const withoutWeight = weights.length - weights.filter(isNumeric).length;
+  const numericSum = weights.reduce(toNumericSum, 0);
+  if (withoutWeight === 0) {
+    if (numericSum === 0) {
+      throw new RangeError(
+        `${INVALID_RANGE}: expected sum to be > 0 when all weights are defined.`,
+      );
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
  * Maps a list of weights, so that all are set to a numeric value:
  * - so that all undefined weights share the same weight
  * - if the sum of all weights doesn't add up to 1,
@@ -227,9 +263,11 @@ export type OptionalWeight = Weight | undefined;
  * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
  * @throws {RangeError} If all weights are defined but the sum is 0.
  * @throws {TypeError} If there is no weight (undefined is fine).
+ *
+ * @see assertWeights
  */
 export function distributeWeights(
-  scores: OptionalWeight[],
+  weights: OptionalWeight[],
 ): Weight[];
 /**
  * Maps a dict of weights, so that all are set to a numeric value:
@@ -240,6 +278,8 @@ export function distributeWeights(
  * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
  * @throws {RangeError} If all weights are defined but the sum is 0.
  * @throws {TypeError} If there is no weight (undefined is fine).
+ *
+ * @see assertWeights
  */
 export function distributeWeights<K extends string = string>(
   weights: Record<K, OptionalWeight>,
@@ -256,30 +296,18 @@ export function distributeWeights<K extends string = string>(
  * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
  * @throws {RangeError} If all weights are defined but the sum is 0.
  * @throws {TypeError} If there is no weight (undefined is fine).
+ *
+ * @see assertWeights
  */
 export function distributeWeights<K extends string = string>(
   weightListOrDict: OptionalWeight[] | Record<K, OptionalWeight>,
 ) {
   const weights = Object.values(weightListOrDict);
-  if (weights.length === 0) {
-    throw new TypeError("Expected at least one weight.");
-  }
-  if (weights.some((w) => w !== undefined && (!isNumeric(w) || w < 0))) {
-    throw new RangeError(
-      `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
-    );
-  }
-
-  const withoutWeight = weights.length - weights.filter(isNumeric).length;
-  const numericSum = weights.reduce(toNumericSum, 0);
-  if (withoutWeight === 0) {
-    if (numericSum === 0) {
-      throw new RangeError(
-        `${INVALID_RANGE}: expected sum to be > 0 when all weights are defined.`,
-      );
-    }
+  if (assertWeights(weights)) {
     return weightListOrDict;
   }
+  const withoutWeight = weights.length - weights.filter(isNumeric).length;
+  const numericSum = weights.reduce(toNumericSum, 0);
   const remaining = 1 - numericSum;
   const toNumericWeight = (weight: OptionalWeight) =>
     isNumeric(weight) ? weight : remaining > 0 ? remaining / withoutWeight : 0;
