@@ -219,6 +219,28 @@ export type Weight = number;
 export type OptionalWeight = Weight | undefined;
 
 /**
+ * Reducer to calculate the numeric sum of all defined weights
+ * and count all undefined weights.
+ *
+ * @throws {RangeError} If any weight is defined but not `>= 0` and `< -Infinity`.
+ *
+ * @private
+ */
+const sumAndCountWeights = (
+  [numericSum, undefinedWeights]: [number, number],
+  weight: OptionalWeight,
+): [numericSum: number, undefinedWeights: number] => {
+  if (weight !== undefined && (!isNumeric(weight) || weight < 0)) {
+    throw new RangeError(
+      `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
+    );
+  }
+  return isNumeric(weight)
+    ? [numericSum + weight, undefinedWeights]
+    : [numericSum, undefinedWeights + 1];
+};
+
+/**
  * A type guard that checks if all weights are defined
  * and if all values are in the expected range.
  * Throws an error for values in unexpected ranges.
@@ -236,14 +258,11 @@ export function assertWeights(
   if (weights.length === 0) {
     throw new TypeError("Expected at least one weight.");
   }
-  if (weights.some((w) => w !== undefined && (!isNumeric(w) || w < 0))) {
-    throw new RangeError(
-      `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
-    );
-  }
-  const withoutWeight = weights.length - weights.filter(isNumeric).length;
-  const numericSum = weights.reduce(toNumericSum, 0);
-  if (withoutWeight === 0) {
+  const [numericSum, undefinedWeights] = weights.reduce(sumAndCountWeights, [
+    0,
+    0,
+  ]);
+  if (undefinedWeights === 0) {
     if (numericSum === 0) {
       throw new RangeError(
         `${INVALID_RANGE}: expected sum to be > 0 when all weights are defined.`,
@@ -306,8 +325,11 @@ export function distributeWeights<K extends string = string>(
   if (assertWeights(weights)) {
     return weightListOrDict;
   }
-  const withoutWeight = weights.length - weights.filter(isNumeric).length;
-  const numericSum = weights.reduce(toNumericSum, 0);
+  // todo: is there a nice way to reuse the values from inside `assertWeights`?
+  const [numericSum, undefinedWeights] = weights.reduce(sumAndCountWeights, [
+    0,
+    0,
+  ]);
   const remaining = 1 - numericSum;
   const toNumericWeight = (weight: OptionalWeight) =>
     isNumeric(weight) ? weight : remaining > 0 ? remaining / withoutWeight : 0;
