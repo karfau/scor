@@ -36,8 +36,8 @@ the rest of the code.
 
 - All values are within a certain **range** (`min <= value <= max`).
   - only numeric values are accepted, everything else throws
-- To use the (different) values as a **score** and easily compare all of them,\
-  they need to be converted into the same `range`: \ between `0`(`value <= min`)
+- To use the (different) values as a **score** and easily compare all of them,
+  they need to be converted into the same `range`: between `0`(`value <= min`)
   and `1` (`value >= max`)
   - If the range is "empty" (`min === max`), the score is always 0
   - values that are "not numeric" (see `isNumeric`) result in a score of 0
@@ -48,9 +48,8 @@ the rest of the code.
   - need the highest value to be the lowest score: `-1 * value`
   - need some logarithmic scale: `Math.log10(value)`
   - ...
-- The user fully controls `min` and `max` values,\
-  but they can be derived from `items` (also using `toValue`, see
-  `getItemRange`).
+- The user fully controls `min` and `max` values, but they can be derived from
+  `items` (also using `toValue`, see `getItemRange`).
 - All options for `scor` are optional and can be configured as a second step
 - Fail as early as possible (by throwing a specific `Error`):
   - using a method that requires an optional value which has not been configured
@@ -66,7 +65,11 @@ the rest of the code.
 code from GitHub.)
 
 ```ts
-import { createToMean, distributeWeights, scorForItems } from "scor"; // I plan to publish to deno.land soon
+import {
+  createToMean,
+  distributeWeights,
+  scorForItems,
+} from "https://deno.land/x/scor/scor.ts";
 import { getPackagesData } from "./npm.ts";
 
 const packages = await getPackagesData();
@@ -122,7 +125,6 @@ distributeWeights(
 
 Contributions are welcome!
 
-- publish to `deno.land/x/` and update docs
 - post about it and get feedback
 - Add support for weighted sum?
 - Add support for more kind of averages?
