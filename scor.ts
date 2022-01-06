@@ -1,7 +1,12 @@
-export type ToValue<T> = (item: T) => number;
+/**
+ * Method to convert an item of type `T` to a numeric value or throw an error.
+ * Errors thrown here are not caught and will propagate to your code.
+ */
+export type ToValue<T> = (item: T) => never | number;
 
 /**
  * All possible options for `scor`.
+ *
  * @see scor
  */
 export interface AllOptions<T> {
@@ -43,8 +48,12 @@ export const isNumeric = (x: number | null | undefined): x is number =>
   typeof x === "number" && -Infinity < x && x < Infinity;
 
 /**
- * API to convert values or items into a score.
+ * Instance to convert values or items into a score.
+ * Use `scor` to create an instance "manually"
+ * or `scorForItems` to derive the range from a list of `items`.
+ *
  * @see scor
+ * @see scorForItems
  */
 export interface Scor<T> extends Readonly<Partial<AllOptions<T>>> {
   /**
@@ -136,7 +145,7 @@ export const scor = <T>(
 export const getItemRange = <T>(
   toValue: ToValue<T>,
   items: T[],
-): [min: number, max: number] => {
+): never | [min: number, max: number] => {
   const values = items.map(toValue).filter(isNumeric);
   if (values.length === 0) {
     throw new RangeError(
@@ -152,10 +161,15 @@ export const getItemRange = <T>(
  * @param toValue will be passed to `getItemRange` and `scor`
  * @param items the data to analyse to determine the range
  *
+ * @throws whenever `getItemRange` or `scor` would throw
+ *
  * @see getItemRange
- * @see scor;
+ * @see scor
  */
-export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
+export const scorForItems = <T>(
+  toValue: ToValue<T>,
+  items: T[],
+): never | Scor<T> => {
   const [min, max] = getItemRange(toValue, items);
   return scor({ min, max, toValue });
 };
@@ -165,16 +179,20 @@ export const scorForItems = <T>(toValue: ToValue<T>, items: T[]): Scor<T> => {
  * @throws {RangeError} If `min` is not numeric.
  * @see isNumeric
  */
-export const setMin = <T>({ max, toValue }: Scor<T>, min: number) =>
-  scor({ min, max, toValue });
+export const setMin = <T>(
+  { max, toValue }: Pick<Scor<T>, "max" | "toValue">,
+  min: number,
+) => scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated `max`.
  * @throws {RangeError} If `max` is not numeric.
  * @see isNumeric
  */
-export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
-  scor({ min, max, toValue });
+export const setMax = <T>(
+  { min, toValue }: Pick<Scor<T>, "min" | "toValue">,
+  max: number,
+) => scor({ min, max, toValue });
 
 /**
  * Creates a `Scor` with an updated range.
@@ -182,7 +200,7 @@ export const setMax = <T>({ min, toValue }: Scor<T>, max: number) =>
  * @see isNumeric
  */
 export const setRange = <T>(
-  { toValue }: Scor<T>,
+  { toValue }: Pick<Scor<T>, "toValue">,
   min: number,
   max: number,
 ) => scor({ min, max, toValue });
@@ -191,7 +209,7 @@ export const setRange = <T>(
  * Creates a `Scor` with an updated `toValue`.
  */
 export const setToValue = <T>(
-  { min, max }: Scor<T>,
+  { min, max }: Pick<Scor<T>, "min" | "max">,
   toValue: ToValue<T>,
 ) => scor({ min, max, toValue });
 
@@ -205,7 +223,10 @@ export const setToValue = <T>(
  *
  * @see isNumeric
  */
-export const toNumericSum = (sum: number, value: number | null | undefined) => {
+export const toNumericSum = (
+  sum: number,
+  value: number | null | undefined,
+): never | number => {
   if (!isNumeric(sum)) {
     throw new RangeError(
       `${INVALID_RANGE}: expected sum to be numeric, but was ${sum}.`,
@@ -229,7 +250,7 @@ export type OptionalWeight = Weight | undefined;
 const sumAndCountWeights = (
   [numericSum, undefinedWeights]: [number, number],
   weight: OptionalWeight,
-): [numericSum: number, undefinedWeights: number] => {
+): never | [numericSum: number, undefinedWeights: number] => {
   if (weight !== undefined && (!isNumeric(weight) || weight < 0)) {
     throw new RangeError(
       `${INVALID_RANGE}: Expected all (defined) weights to be numeric and >= 0`,
@@ -287,7 +308,7 @@ export function assertWeights(
  */
 export function distributeWeights(
   weights: OptionalWeight[],
-): Weight[];
+): never | Weight[];
 /**
  * Maps a dict of weights, so that all are set to a numeric value:
  * - so that all undefined weights share the same weight
@@ -302,7 +323,7 @@ export function distributeWeights(
  */
 export function distributeWeights<K extends string = string>(
   weights: Record<K, OptionalWeight>,
-): Record<K, Weight>;
+): never | Record<K, Weight>;
 /**
  * Maps multiple weights (list or dict) so that all are set to a numeric value:
  * - so that all undefined weights share the same weight
@@ -320,10 +341,10 @@ export function distributeWeights<K extends string = string>(
  */
 export function distributeWeights<K extends string = string>(
   weightListOrDict: OptionalWeight[] | Record<K, OptionalWeight>,
-) {
+): never | Weight[] | Record<K, Weight> {
   const weights = Object.values(weightListOrDict);
   if (assertWeights(weights)) {
-    return weightListOrDict;
+    return weightListOrDict as Weight[] | Record<K, Weight>;
   }
   // todo: is there a nice way to reuse the values from inside `assertWeights`?
   const [numericSum, undefinedWeights] = weights.reduce(sumAndCountWeights, [
@@ -335,13 +356,13 @@ export function distributeWeights<K extends string = string>(
   const toNumericWeight = (weight: OptionalWeight) =>
     isNumeric(weight) ? weight : perUndefinedWeight;
   return Array.isArray(weightListOrDict)
-    ? weightListOrDict.map(toNumericWeight)
+    ? weightListOrDict.map(toNumericWeight) as Weight[]
     : Object.fromEntries(
       (Object.entries(weightListOrDict) as [K, number][]).map(([key, s]) => [
         key,
         toNumericWeight(s),
       ]),
-    );
+    ) as Record<K, Weight>;
 }
 
 /**

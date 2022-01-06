@@ -122,9 +122,6 @@ distributeWeights(
 
 Contributions are welcome!
 
-- WIP: finish goals from above
-  - restrict type to only required fields for `setX`?
-  - make sure all methods that throw return a union with `never`
 - proof that test are working in each pushed commit/branch
 - create first tag
 - publish to `deno.land/x/`
