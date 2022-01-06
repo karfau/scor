@@ -122,9 +122,7 @@ distributeWeights(
 
 Contributions are welcome!
 
-- proof that test are working in each pushed commit/branch
-- create first tag
-- publish to `deno.land/x/`
+- publish to `deno.land/x/` and update docs
 - post about it and get feedback
 - Add support for weighted sum?
 - Add support for more kind of averages?
